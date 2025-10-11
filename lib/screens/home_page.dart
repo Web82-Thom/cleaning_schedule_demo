@@ -7,7 +7,6 @@ import 'package:cleaning_schedule/screens/stubPages/rdv_page.dart';
 import 'package:cleaning_schedule/widgets/build_tab_item_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'auth/login_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

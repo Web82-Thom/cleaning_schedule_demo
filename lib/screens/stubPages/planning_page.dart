@@ -1,3 +1,4 @@
+import 'package:cleaning_schedule/widgets/weekly_schedule_table_widget.dart';
 import 'package:flutter/material.dart';
 
 class PlanningPage extends StatelessWidget {
@@ -5,14 +6,17 @@ class PlanningPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.view_week, size: 72, color: Colors.indigo),
-          SizedBox(height: 16),
-          Text('Planning', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-        ],
+    final now = DateTime.now();
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1)); // lundi
+    final endOfWeek = startOfWeek.add(const Duration(days: 4)); // vendredi
+
+    return Scaffold(
+      body: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: WeeklyScheduleTableWidget(
+          startOfWeek: startOfWeek,
+          endOfWeek: endOfWeek,
+        ),
       ),
     );
   }
