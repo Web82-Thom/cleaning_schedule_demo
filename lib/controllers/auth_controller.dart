@@ -14,7 +14,14 @@ class AuthController {
     required String password,
     required BuildContext context,
   }) async {
-    try {
+      try {
+        showDialog(
+        context: context,
+        barrierDismissible: false, // empêche de fermer le loader
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: Colors.indigo),
+        ),
+      );
       // Crée le compte Firebase Auth
       UserCredential cred = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -33,6 +40,8 @@ class AuthController {
         'actif': true,
         'dateCreation': FieldValue.serverTimestamp(),
       });
+      // ✅ Ferme le loader avant de continuer
+      if (context.mounted) Navigator.pop(context);
       // ✅ On revient à la page précédente (AuthWrapper redirigera automatiquement)
       if (context.mounted) {
         Navigator.pop(context); 
