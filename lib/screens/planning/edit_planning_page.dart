@@ -34,15 +34,7 @@ class _EditPlanningPageState extends State<EditPlanningPage> {
               title: "Lieux",
               description: "Créer et gérer les lieux de travail (ex: foyer, ESAT...)",
               color: Colors.blue.shade100,
-              onTap: () => Navigator.pushNamed(context, '/lieux'),
-            ),
-            const SizedBox(height: 12),
-            _buildCard(
-              icon: Icons.meeting_room,
-              title: "Pièces",
-              description: "Définir les pièces associées à un lieu (ex: chambres, couloir...)",
-              color: Colors.green.shade100,
-              onTap: () => Navigator.pushNamed(context, '/pieces'),
+              onTap: () => Navigator.pushNamed(context, '/listPlace'),
             ),
             const SizedBox(height: 12),
             _buildCard(
