@@ -313,6 +313,7 @@ class _RdvPageState extends State<RdvPage> {
                 ),
                 subtitle: Text(
                   '${DateFormat('dd/MM/yyyy HH:mm').format(rdv['date'])}'
+                  '${rdv['motif'].isNotEmpty ? ' • ${rdv['motif']}' : ''}'
                   '${rdv['lieu'].isNotEmpty ? ' • ${rdv['lieu']}' : ''}',
                   style: const TextStyle(fontSize: 12),
                 ),
