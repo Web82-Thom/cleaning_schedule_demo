@@ -93,77 +93,94 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
       grouped.putIfAbsent(key, () => []).add(e);
     }
 
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4.landscape,
-        build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                'Planning semaine $_weekNumber',
-                style: pw.TextStyle(
-                  fontSize: 20,
-                  fontWeight: pw.FontWeight.bold,
+    // Créer un tableau de "lignes" par jour
+    List<List<String>> allRows = [];
+    for (int i = 0; i < days.length; i++) {
+      final dayKey = DateFormat('yyyy-MM-dd').format(days[i]);
+      final morningEvents = grouped['${dayKey}_morning'] ?? [];
+      final afternoonEvents = grouped['${dayKey}_afternoon'] ?? [];
+
+      String formatEvents(List<Map<String, dynamic>> events) {
+        if (events.isEmpty) return '—';
+        return events
+            .map((e) {
+              final workers = (e['workerIds'] as List)
+                  .map((id) => _workersMap[id] ?? 'Inconnu')
+                  .join(', ');
+              final subPlace = (e['subPlace'] != null && e['subPlace'] != '')
+                  ? ' (${e['subPlace']})'
+                  : '';
+              final task = (e['task'] != null && e['task'] != '')
+                  ? '\nTâche: ${e['task']}'
+                  : '';
+              return '${e['place']}$subPlace$task\nTravailleurs: $workers';
+            })
+            .join('\n\n');
+      }
+
+      allRows.add([
+        dayLabels[i].toUpperCase(),
+        formatEvents(morningEvents),
+        formatEvents(afternoonEvents),
+      ]);
+    }
+
+    // Découper les lignes pour créer plusieurs pages
+    const maxRowsPerPage =
+        5; // tu peux ajuster selon la taille de la page et du texte
+    for (
+      int pageStart = 0;
+      pageStart < allRows.length;
+      pageStart += maxRowsPerPage
+    ) {
+      final pageRows = allRows.sublist(
+        pageStart,
+        (pageStart + maxRowsPerPage).clamp(0, allRows.length),
+      );
+
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4.landscape,
+          build: (context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                if (pageStart == 0) ...[
+                  pw.Text(
+                    'Planning semaine $_weekNumber',
+                    style: pw.TextStyle(
+                      fontSize: 20,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 10),
+                  pw.Text(
+                    'Du ${DateFormat('dd/MM').format(_startOfWeek)} au ${DateFormat('dd/MM').format(_endOfWeek)}',
+                  ),
+                  pw.SizedBox(height: 20),
+                ],
+                pw.Table.fromTextArray(
+                  headers: ['Jour', 'Matin', 'Après-midi'],
+                  data: pageRows,
+                  cellStyle: pw.TextStyle(fontSize: 10),
+                  headerStyle: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                  cellAlignment: pw.Alignment.topLeft,
+                  headerDecoration: pw.BoxDecoration(color: PdfColors.grey300),
+                  columnWidths: {
+                    0: const pw.FixedColumnWidth(80),
+                    1: const pw.FixedColumnWidth(200),
+                    2: const pw.FixedColumnWidth(200),
+                  },
                 ),
-              ),
-              pw.SizedBox(height: 10),
-              pw.Text(
-                'Du ${DateFormat('dd/MM').format(_startOfWeek)} au ${DateFormat('dd/MM').format(_endOfWeek)}',
-              ),
-              pw.SizedBox(height: 20),
-
-              // Tableau
-              pw.Table.fromTextArray(
-                headers: ['Jour', 'Matin', 'Après-midi'],
-                data: List.generate(days.length, (i) {
-                  final dayKey = DateFormat('yyyy-MM-dd').format(days[i]);
-                  final morningEvents = grouped['${dayKey}_morning'] ?? [];
-                  final afternoonEvents = grouped['${dayKey}_afternoon'] ?? [];
-
-                  String formatEvents(List<Map<String, dynamic>> events) {
-                    if (events.isEmpty) return '—';
-                    return events
-                        .map((e) {
-                          final workers = (e['workerIds'] as List)
-                              .map((id) => _workersMap[id] ?? 'Inconnu')
-                              .join(', ');
-                          final subPlace =
-                              (e['subPlace'] != null && e['subPlace'] != '')
-                              ? ' (${e['subPlace']})'
-                              : '';
-                          final task = (e['task'] != null && e['task'] != '')
-                              ? '\nTâche: ${e['task']}'
-                              : '';
-                          return '${e['place']}$subPlace$task\nTravailleurs: $workers';
-                        })
-                        .join('\n\n');
-                  }
-
-                  return [
-                    dayLabels[i].toUpperCase(),
-                    formatEvents(morningEvents),
-                    formatEvents(afternoonEvents),
-                  ];
-                }),
-                cellStyle: pw.TextStyle(fontSize: 10),
-                headerStyle: pw.TextStyle(
-                  fontWeight: pw.FontWeight.bold,
-                  fontSize: 12,
-                ),
-                cellAlignment: pw.Alignment.topLeft,
-                headerDecoration: pw.BoxDecoration(color: PdfColors.grey300),
-                columnWidths: {
-                  0: const pw.FixedColumnWidth(80),
-                  1: const pw.FixedColumnWidth(200),
-                  2: const pw.FixedColumnWidth(200),
-                },
-              ),
-            ],
-          );
-        },
-      ),
-    );
+              ],
+            );
+          },
+        ),
+      );
+    }
 
     final directory = await getApplicationDocumentsDirectory();
     final file = File('${directory.path}/planning_semaine_$_weekNumber.pdf');
@@ -217,7 +234,7 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
           return const Center(child: CircularProgressIndicator());
 
         final events = snapshot.data!.docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
+          final data = doc.data();
           return {
             'id': doc.id,
             'day': (data['day'] as Timestamp).toDate(),
@@ -239,6 +256,35 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                     color: Colors.redAccent,
                   ),
                   tooltip: 'Voir les PDF enregistrés',
+                  onLongPress: () async {
+                    // Affiche le dialogue de confirmation
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text(
+                          'Exporter en PDF',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                        content: Text(
+                          'Voulez-vous générer le PDF du planning de la semaine $_weekNumber ?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Annuler'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Confirmer'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirmed == true) {
+                      _generateWeeklyPdf(events);
+                    }
+                  },
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -248,66 +294,29 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                 ),
                 const SizedBox(width: 8),
 
-                // 🟢 Texte de la semaine + geste de slide
+                // 🟢 Texte de la semaine + swipe
                 Flexible(
-                  child: Dismissible(
-                    key: ValueKey('week_$_weekNumber'),
-                    direction: DismissDirection.startToEnd,
-                    background: Container(
-                      color: Colors.redAccent,
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.picture_as_pdf, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text(
-                            'Exporter en PDF',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 8,
-                            ),
-                            
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      children: [
+                        // const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: const TextStyle(fontSize: 14),
                             overflow: TextOverflow.ellipsis,
                           ),
-                        ],
-                      ),
-                    ),
-                    confirmDismiss: (direction) async {
-                      // Affiche le dialog de confirmation
-                      return await showDialog(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text(
-                            'Exporter en PDF',
-                            style: TextStyle(fontSize: 14),
-                            overflow: TextOverflow.visible,
-                          ),
-                          content: Text(
-                            'Voulez-vous générer le PDF du planning de la semaine $_weekNumber ?',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('Annuler'),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('Confirmer'),
-                            ),
-                          ],
                         ),
-                      );
-                    },
-                    onDismissed: (direction) {
-                      // Génère le PDF si confirmé
-                      _generateWeeklyPdf(events);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Text(title, style: const TextStyle(fontSize: 14)),
+                      ],
                     ),
                   ),
                 ),
