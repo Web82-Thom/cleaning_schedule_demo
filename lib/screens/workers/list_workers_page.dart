@@ -20,6 +20,7 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
   bool _isTherapeutic = false;
   bool _isHalfTime = false;
   bool _isFullTime = false;
+  bool _isAbcent = false;
 
   @override
   void dispose() {
@@ -50,6 +51,7 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
         'isTherapeutic': _isTherapeutic,
         'isHalfTime': _isHalfTime,
         'isFullTime': (!_isPartTime && !_isTherapeutic && !_isHalfTime),
+        'isAbcent': _isAbcent,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -65,7 +67,7 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
       ).showSnackBar(SnackBar(content: Text('Erreur : ${e.toString()}')));
     }
   }
-  
+
   /// ✏️ Modifier un travailleur
   Future<void> _updateWorker(
     BuildContext context,
@@ -83,6 +85,7 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
     bool isTherapeutic = data['isTherapeutic'] ?? false;
     bool isHalfTime = data['isHalfTime'] ?? false;
     bool isFullTime = (!isPartTime && !isTherapeutic && !isHalfTime);
+    bool isAbcent = data['isAbcent'] ?? false;
     // ➜ Si un statut est sélectionné, décoche les autres
     if (isPartTime) {
       isTherapeutic = false;
@@ -201,6 +204,15 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
                               });
                             },
                           ),
+                          CheckboxListTile(
+                            title: const Text("Absent"),
+                            value: isAbcent,
+                            onChanged: (v) {
+                              setDialogState(() {
+                                isAbcent = v ?? false;
+                              });
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -242,6 +254,7 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
                                   !isTherapeutic &&
                                   !isHalfTime),
                               'isHalfTime': isHalfTime,
+                              'isAbcent': isAbcent,
                               'updatedAt': FieldValue.serverTimestamp(),
                             });
 
@@ -274,6 +287,7 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
     _isTherapeutic = false;
     _isHalfTime = false;
     _isFullTime = false;
+    _isAbcent = false;
     _firstNameController.clear();
     _nameController.clear();
 
@@ -376,6 +390,15 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
                                     });
                                   },
                                 ),
+                                CheckboxListTile(
+                                  title: const Text("Absent"),
+                                  value: _isAbcent,
+                                  onChanged: (v) {
+                                    setDialogState(() {
+                                      _isAbcent = v ?? false;
+                                    });
+                                  },
+                                ),
                               ],
                             ),
                           ),
@@ -450,7 +473,8 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
   Color _getStatusColor(Map<String, dynamic> data) {
     if (data['isTherapeutic'] == true) return Colors.blue;
     if (data['isPartTime'] == true) return Colors.orange;
-    if (data['isHalfTime'] == true) return Colors.pink;
+    if (data['isHalfTime'] == true) return Colors.deepPurpleAccent;
+    if (data['isAbcent'] == true) return Colors.black;
     return Colors.green;
   }
 
@@ -460,6 +484,11 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
     if (data['isPartTime'] == true) return 'Temps partiel';
     if (data['isHalfTime'] == true) return 'Mi-temps';
     return 'Temps plein';
+  }
+
+  /// 🏷️ Texte du statut
+  String _getStatusAbcent(Map<String, dynamic> data) {
+    return data['isAbcent'] == true ? 'Absent' : '';
   }
 
   @override
@@ -486,11 +515,12 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
               final data = docs[index].data() as Map<String, dynamic>;
               final id = docs[index].id;
 
-              final color = _getStatusColor(data);
               final status = _getStatusLabel(data);
+              final isAbsentData = data['isAbcent'] == true;
 
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 6),
+
                 child: ListTile(
                   title: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -522,7 +552,30 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
                       ),
                     ],
                   ),
-                  subtitle: Text(status, style: TextStyle(color: color)),
+                  subtitle: RichText(
+                    text: TextSpan(
+                      children: [
+                        if (!isAbsentData)
+                          TextSpan(
+                            text: status,
+                            style: TextStyle(
+                              color: _getStatusColor(data),
+                              fontSize: 12,
+                            ),
+                          ),
+                        // Ajoute " / Absent" uniquement si le worker n'est pas en plein temps ou si absent
+                        if (isAbsentData)
+                          const TextSpan(
+                            text: 'ABSENT',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               );
             },
