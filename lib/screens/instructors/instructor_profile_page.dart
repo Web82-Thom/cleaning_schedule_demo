@@ -54,7 +54,7 @@ class _InstructorProfilePageState extends State<InstructorProfilePage> {
             icon: const Icon(Icons.edit),
             tooltip: 'Modifier le profil',
             onPressed: () {
-              // TODO : page édition profil
+              editInstructorController.editProfilInstructor(context, _userData!);
             },
           ),
         ],

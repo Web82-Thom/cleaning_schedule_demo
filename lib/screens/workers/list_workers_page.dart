@@ -486,11 +486,6 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
     return 'Temps plein';
   }
 
-  /// 🏷️ Texte du statut
-  String _getStatusAbcent(Map<String, dynamic> data) {
-    return data['isAbcent'] == true ? 'Absent' : '';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
