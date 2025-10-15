@@ -210,291 +210,293 @@ class _EditEventPageState extends State<EditEventPage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Modifier l’événement'),
-        actions: [
-          IconButton(icon: const Icon(Icons.delete), onPressed: _deleteEvent),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              // 📅 Date
-              ListTile(
-                title: Text(
-                  _selectedDate == null
-                      ? 'Sélectionner une date'
-                      : 'Date: ${DateFormat('dd/MM/yyyy').format(_selectedDate!)}',
-                ),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: _selectedDate ?? DateTime.now(),
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2030),
-                  );
-                  if (date != null) {
-                    if (!mounted) return;
-                    setState(() => _selectedDate = date);
-                    await _loadWorkers();
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // 🕓 Créneau horaire
-              Row(
-                children: [
-                  Expanded(
-                    child: RadioListTile<String>(
-                      title: const Text('Matin'),
-                      value: 'morning',
-                      groupValue: _timeSlot,
-                      onChanged: (v) {
-                        if (!mounted) return;
-                        setState(() => _timeSlot = v!);
-                        _loadWorkers();
-                      },
-                    ),
+    return SafeArea(
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Modifier l’événement'),
+          actions: [
+            IconButton(icon: const Icon(Icons.delete), onPressed: _deleteEvent, color: Colors.red,),
+          ],
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                // 📅 Date
+                ListTile(
+                  title: Text(
+                    _selectedDate == null
+                        ? 'Sélectionner une date'
+                        : 'Date: ${DateFormat('dd/MM/yyyy').format(_selectedDate!)}',
                   ),
-                  Expanded(
-                    child: RadioListTile<String>(
-                      title: const Text('Après-midi'),
-                      value: 'afternoon',
-                      groupValue: _timeSlot,
-                      onChanged: (v) {
-                        if (!mounted) return;
-                        setState(() => _timeSlot = v!);
-                        _loadWorkers();
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // 📍 Lieu
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Lieu',
-                  border: OutlineInputBorder(),
+                  trailing: const Icon(Icons.calendar_today),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _selectedDate ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                    );
+                    if (date != null) {
+                      if (!mounted) return;
+                      setState(() => _selectedDate = date);
+                      await _loadWorkers();
+                    }
+                  },
                 ),
-                items: _places
-                    .map(
-                      (p) => DropdownMenuItem<String>(
-                        value: p['name'],
-                        child: Text(p['name']),
+                const SizedBox(height: 16),
+      
+                // 🕓 Créneau horaire
+                Row(
+                  children: [
+                    Expanded(
+                      child: RadioListTile<String>(
+                        title: const Text('Matin'),
+                        value: 'morning',
+                        groupValue: _timeSlot,
+                        onChanged: (v) {
+                          if (!mounted) return;
+                          setState(() => _timeSlot = v!);
+                          _loadWorkers();
+                        },
                       ),
-                    )
-                    .toList(),
-                value: _selectedPlace,
-                onChanged: (v) {
-                  if (!mounted) return;
-                  setState(() {
-                    _selectedPlace = v;
-                    _selectedSubPlaces = [];
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // 🏠 Sous-lieux
-              if (_selectedPlace != null &&
-                  (_subPlacesMap[_selectedPlace!] ?? []).isNotEmpty)
-                InputDecorator(
+                    ),
+                    Expanded(
+                      child: RadioListTile<String>(
+                        title: const Text('Après-midi'),
+                        value: 'afternoon',
+                        groupValue: _timeSlot,
+                        onChanged: (v) {
+                          if (!mounted) return;
+                          setState(() => _timeSlot = v!);
+                          _loadWorkers();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+      
+                // 📍 Lieu
+                DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
-                    labelText: 'Sous-lieux',
+                    labelText: 'Lieu',
                     border: OutlineInputBorder(),
                   ),
-                  child: Wrap(
-                    spacing: 8,
-                    children: (_subPlacesMap[_selectedPlace!] ?? []).map((sub) {
-                      final selected = _selectedSubPlaces.contains(sub);
-                      return FilterChip(
-                        label: Text(sub),
-                        selected: selected,
-                        selectedColor: Colors.blue.shade100,
-                        onSelected: (v) {
-                          if (!mounted) return;
-                          setState(() {
-                            if (v) {
-                              _selectedSubPlaces.add(sub);
-                            } else {
-                              _selectedSubPlaces.remove(sub);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-                ),
-              const SizedBox(height: 16),
-
-              // 🧹 Tâche
-              TextFormField(
-                initialValue: _task,
-                decoration: const InputDecoration(
-                  labelText: 'Tâche',
-                  border: OutlineInputBorder(),
-                ),
-                onSaved: (v) => _task = v ?? '',
-              ),
-              const SizedBox(height: 16),
-
-              _workers.isEmpty
-                  ? const CircularProgressIndicator()
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Assigné aux travailleurs',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                  items: _places
+                      .map(
+                        (p) => DropdownMenuItem<String>(
+                          value: p['name'],
+                          child: Text(p['name']),
                         ),
-                        ..._workers.map((w) {
-                          final isBusy = w['isBusy'] ?? false;
-                          final isAbcent = w['isAbcent'] ?? false;
-
-                          // 🔹 Jour et créneau pour le schedule
-                          final dayName = _selectedDate != null
-                              ? DateFormat(
-                                  'EEEE',
-                                  'fr_FR',
-                                ).format(_selectedDate!)
-                              : '';
-                          print('Worker: ${w['name']}');
-                          print('Selected day: $dayName');
-                          print(
-                            'Keys in workSchedule: ${w['workSchedule']?.keys}',
-                          );
-                          final workDay =
-                              w['workSchedule']?[dayName.toLowerCase()] ?? {};
-
-                          // 🔹 Vérifie si le worker travaille ce créneau
-                          final worksThisSlot = _timeSlot == 'morning'
-                              ? (workDay['worksMorning'] ?? true)
-                              : (workDay['worksAfternoon'] ?? true);
-
-                          // 🔹 Horaires aménagés (endTime défini et non vide)
-                          final hasSpecialSchedule =
-                              workDay['endTime'] != null &&
-                              workDay['endTime'].toString().isNotEmpty;
-                          print('${w['name']} - $dayName : $workDay');
-                          return InkWell(
-                            onLongPress: isBusy
-                                ? () async {
-                                    final confirm = await showDialog<bool>(
-                                      context: context,
-                                      builder: (ctx) => AlertDialog(
-                                        title: Text('Worker occupé'),
-                                        content: Text(
-                                          'Voulez-vous assigner ${w['name']} à cet événement quand même ?',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(ctx, false),
-                                            child: const Text('Annuler'),
-                                          ),
-                                          ElevatedButton(
-                                            onPressed: () =>
-                                                Navigator.pop(ctx, true),
-                                            child: const Text('Oui'),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-
-                                    if (confirm == true) {
-                                      await FirebaseFirestore.instance
-                                          .collection('events')
-                                          .add({
-                                            'day': Timestamp.fromDate(
-                                              _selectedDate!,
-                                            ),
-                                            'timeSlot': _timeSlot,
-                                            'place': _selectedPlace,
-                                            'subPlace': _selectedSubPlaces,
-                                            'task': _task,
-                                            'workerIds': [w['id']],
-                                            'createdAt': Timestamp.now(),
-                                            'updatedAt': Timestamp.now(),
-                                          });
-
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
+                      )
+                      .toList(),
+                  value: _selectedPlace,
+                  onChanged: (v) {
+                    if (!mounted) return;
+                    setState(() {
+                      _selectedPlace = v;
+                      _selectedSubPlaces = [];
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+      
+                // 🏠 Sous-lieux
+                if (_selectedPlace != null &&
+                    (_subPlacesMap[_selectedPlace!] ?? []).isNotEmpty)
+                  InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Sous-lieux',
+                      border: OutlineInputBorder(),
+                    ),
+                    child: Wrap(
+                      spacing: 8,
+                      children: (_subPlacesMap[_selectedPlace!] ?? []).map((sub) {
+                        final selected = _selectedSubPlaces.contains(sub);
+                        return FilterChip(
+                          label: Text(sub),
+                          selected: selected,
+                          selectedColor: Colors.blue.shade100,
+                          onSelected: (v) {
+                            if (!mounted) return;
+                            setState(() {
+                              if (v) {
+                                _selectedSubPlaces.add(sub);
+                              } else {
+                                _selectedSubPlaces.remove(sub);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+      
+                // 🧹 Tâche
+                TextFormField(
+                  initialValue: _task,
+                  decoration: const InputDecoration(
+                    labelText: 'Tâche',
+                    border: OutlineInputBorder(),
+                  ),
+                  onSaved: (v) => _task = v ?? '',
+                ),
+                const SizedBox(height: 16),
+      
+                _workers.isEmpty
+                    ? const CircularProgressIndicator()
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Assigné aux travailleurs',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          ..._workers.map((w) {
+                            final isBusy = w['isBusy'] ?? false;
+                            final isAbcent = w['isAbcent'] ?? false;
+      
+                            // 🔹 Jour et créneau pour le schedule
+                            final dayName = _selectedDate != null
+                                ? DateFormat(
+                                    'EEEE',
+                                    'fr_FR',
+                                  ).format(_selectedDate!)
+                                : '';
+                            print('Worker: ${w['name']}');
+                            print('Selected day: $dayName');
+                            print(
+                              'Keys in workSchedule: ${w['workSchedule']?.keys}',
+                            );
+                            final workDay =
+                                w['workSchedule']?[dayName.toLowerCase()] ?? {};
+      
+                            // 🔹 Vérifie si le worker travaille ce créneau
+                            final worksThisSlot = _timeSlot == 'morning'
+                                ? (workDay['worksMorning'] ?? true)
+                                : (workDay['worksAfternoon'] ?? true);
+      
+                            // 🔹 Horaires aménagés (endTime défini et non vide)
+                            final hasSpecialSchedule =
+                                workDay['endTime'] != null &&
+                                workDay['endTime'].toString().isNotEmpty;
+                            print('${w['name']} - $dayName : $workDay');
+                            return InkWell(
+                              onLongPress: isBusy
+                                  ? () async {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title: Text('Worker occupé'),
                                           content: Text(
-                                            '${w['name']} assigné à un nouvel événement ✅',
+                                            'Voulez-vous assigner ${w['name']} à cet événement quand même ?',
                                           ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, false),
+                                              child: const Text('Annuler'),
+                                            ),
+                                            ElevatedButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, true),
+                                              child: const Text('Oui'),
+                                            ),
+                                          ],
                                         ),
                                       );
-
-                                      _loadWorkers(); // Rafraîchir la liste
+      
+                                      if (confirm == true) {
+                                        await FirebaseFirestore.instance
+                                            .collection('events')
+                                            .add({
+                                              'day': Timestamp.fromDate(
+                                                _selectedDate!,
+                                              ),
+                                              'timeSlot': _timeSlot,
+                                              'place': _selectedPlace,
+                                              'subPlace': _selectedSubPlaces,
+                                              'task': _task,
+                                              'workerIds': [w['id']],
+                                              'createdAt': Timestamp.now(),
+                                              'updatedAt': Timestamp.now(),
+                                            });
+      
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              '${w['name']} assigné à un nouvel événement ✅',
+                                            ),
+                                          ),
+                                        );
+      
+                                        _loadWorkers(); // Rafraîchir la liste
+                                      }
                                     }
-                                  }
-                                : null,
-                            child: CheckboxListTile(
-                              title: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      w['name'],
-                                      style: TextStyle(
-                                        color:
-                                            (!worksThisSlot ||
-                                                isAbcent ||
-                                                isBusy)
-                                            ? Colors.grey
-                                            : null,
-                                        decoration: isBusy
-                                            ? TextDecoration.lineThrough
-                                            : null,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  if (hasSpecialSchedule)
-                                    const Padding(
-                                      padding: EdgeInsets.only(left: 5),
-                                      child: Icon(
-                                        Icons.access_time,
-                                        size: 16,
-                                        color: Colors.orange,
+                                  : null,
+                              child: CheckboxListTile(
+                                title: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        w['name'],
+                                        style: TextStyle(
+                                          color:
+                                              (!worksThisSlot ||
+                                                  isAbcent ||
+                                                  isBusy)
+                                              ? Colors.grey
+                                              : null,
+                                          decoration: isBusy
+                                              ? TextDecoration.lineThrough
+                                              : null,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                ],
+                                    if (hasSpecialSchedule)
+                                      const Padding(
+                                        padding: EdgeInsets.only(left: 5),
+                                        child: Icon(
+                                          Icons.access_time,
+                                          size: 16,
+                                          color: Colors.orange,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                value: _selectedWorkers.contains(w['id']),
+                                onChanged: (!worksThisSlot || isAbcent || isBusy)
+                                    ? null
+                                    : (v) {
+                                        setState(() {
+                                          if (v == true) {
+                                            _selectedWorkers.add(w['id']);
+                                          } else {
+                                            _selectedWorkers.remove(w['id']);
+                                          }
+                                        });
+                                      },
                               ),
-                              value: _selectedWorkers.contains(w['id']),
-                              onChanged: (!worksThisSlot || isAbcent || isBusy)
-                                  ? null
-                                  : (v) {
-                                      setState(() {
-                                        if (v == true) {
-                                          _selectedWorkers.add(w['id']);
-                                        } else {
-                                          _selectedWorkers.remove(w['id']);
-                                        }
-                                      });
-                                    },
-                            ),
-                          );
-                        }).toList(),
-                      ],
-                    ),
-
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _saveChanges,
-                child: const Text('Enregistrer les modifications'),
-              ),
-            ],
+                            );
+                          }).toList(),
+                        ],
+                      ),
+      
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: _saveChanges,
+                  child: const Text('Enregistrer les modifications'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

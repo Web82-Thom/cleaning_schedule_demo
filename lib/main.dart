@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:cleaning_schedule/screens/instructors/instructor_profile_page.dart';
 import 'package:cleaning_schedule/screens/places/list_place_page.dart';
 import 'package:cleaning_schedule/screens/planning/created_event_page.dart';
@@ -15,9 +16,32 @@ import 'screens/home_page.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR', null);
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+
+  if (!Platform.isWindows) {
+    // ✅ Mobile/Web : Firebase complet
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    // Exemple : connexion anonyme sur mobile/web
+    try {
+      await FirebaseAuth.instance.signInAnonymously();
+      print('✅ Firebase Auth OK on Mobile/Web');
+    } catch (e) {
+      print('❌ Firebase Auth failed: $e');
+    }
+  } else {
+    // ✅ Windows : seulement Firebase Core safe
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      print('✅ Firebase Core initialized on Windows (Auth disabled)');
+    } catch (e) {
+      print('❌ Firebase Core init failed on Windows: $e');
+    }
+  }
+
   runApp(const CleaningScheduleApp());
 }
 
