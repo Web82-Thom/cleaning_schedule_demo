@@ -47,7 +47,9 @@ class _EditEventPageState extends State<EditEventPage> {
     if (!doc.exists) return;
 
     final data = doc.data() as Map<String, dynamic>;
-
+    
+    if (!mounted) return;
+    
     setState(() {
       _selectedDate = (data['day'] as Timestamp).toDate();
       _timeSlot = data['timeSlot'];
@@ -140,7 +142,7 @@ class _EditEventPageState extends State<EditEventPage> {
 
     // ✅ Tri alphabétique par nom
     workersList.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
-
+if (!mounted) return;
     setState(() {
       _workers = workersList;
     });
@@ -237,6 +239,7 @@ class _EditEventPageState extends State<EditEventPage> {
                     lastDate: DateTime(2030),
                   );
                   if (date != null) {
+                    if (!mounted) return;
                     setState(() => _selectedDate = date);
                     await _loadWorkers();
                   }
@@ -253,6 +256,7 @@ class _EditEventPageState extends State<EditEventPage> {
                       value: 'morning',
                       groupValue: _timeSlot,
                       onChanged: (v) {
+                        if (!mounted) return;
                         setState(() => _timeSlot = v!);
                         _loadWorkers();
                       },
@@ -264,6 +268,7 @@ class _EditEventPageState extends State<EditEventPage> {
                       value: 'afternoon',
                       groupValue: _timeSlot,
                       onChanged: (v) {
+                        if (!mounted) return;
                         setState(() => _timeSlot = v!);
                         _loadWorkers();
                       },
@@ -287,6 +292,7 @@ class _EditEventPageState extends State<EditEventPage> {
                     .toList(),
                 value: _selectedPlace,
                 onChanged: (v) {
+                  if (!mounted) return;
                   setState(() {
                     _selectedPlace = v;
                     _selectedSubPlaces = [];
@@ -312,6 +318,7 @@ class _EditEventPageState extends State<EditEventPage> {
                         selected: selected,
                         selectedColor: Colors.blue.shade100,
                         onSelected: (v) {
+                          if (!mounted) return;
                           setState(() {
                             if (v) {
                               _selectedSubPlaces.add(sub);
@@ -363,6 +370,7 @@ class _EditEventPageState extends State<EditEventPage> {
                             onChanged: (isBusy || isAbcent)
                                 ? null
                                 : (v) {
+                                  if (!mounted) return;
                                     setState(() {
                                       if (v == true) {
                                         _selectedWorkers.add(w['id']);
