@@ -73,7 +73,7 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
-                        // 🔹 Icône horloge si le worker a un workSchedule
+                        // Icône horloge si le worker a un workSchedule
                         if (data['workSchedule'] != null)
                         const Icon(
                           Icons.schedule,
