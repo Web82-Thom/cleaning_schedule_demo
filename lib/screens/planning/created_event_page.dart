@@ -139,7 +139,7 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
     );
 
     await eventsRef.add(event.toFirestore());
-
+    await _loadWorkers();
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Événement créé avec succès ✅')),
@@ -282,26 +282,59 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
                           final isBusy = w['isBusy'] ?? false;
                           final isAbcent = w['isAbcent'] ?? false;
 
-                          return CheckboxListTile(
-                            title: Text(
-                              w['name'],
-                              style: TextStyle(
-                                color: isAbcent || isBusy ? Colors.grey : null,
-                                decoration: isBusy ? TextDecoration.lineThrough : null,
+                          return InkWell(
+                            onLongPress: isBusy ? () async {
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text('Worker occupé'),
+      content: Text('Voulez-vous assigner ${w['name']} à cet événement quand même ?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+        ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Oui')),
+      ],
+    ),
+  );
+
+  if (confirm == true) {
+    // 🔹 Créer un nouvel event pour ce worker seulement
+    await FirebaseFirestore.instance.collection('events').add({
+      'day': Timestamp.fromDate(_selectedDate!),
+      'timeSlot': _timeSlot,
+      'place': _selectedPlace,
+      'subPlace': _selectedSubPlaces,
+      'task': _task,
+      'workerIds': [w['id']],
+      'createdAt': Timestamp.now(),
+      'updatedAt': Timestamp.now(),
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${w['name']} assigné à un nouvel événement ✅')),
+    );
+  }
+} : null,
+                            child: CheckboxListTile(
+                              title: Text(
+                                w['name'],
+                                style: TextStyle(
+                                  color: isAbcent || isBusy ? Colors.grey : null,
+                                  decoration: isBusy ? TextDecoration.lineThrough : null,
+                                ),
                               ),
+                              value: _selectedWorkers.contains(w['id']),
+                              onChanged: (isAbcent || isBusy)
+                                  ? null
+                                  : (v) {
+                                      setState(() {
+                                        if (v == true) {
+                                          _selectedWorkers.add(w['id']);
+                                        } else {
+                                          _selectedWorkers.remove(w['id']);
+                                        }
+                                      });
+                                    },
                             ),
-                            value: _selectedWorkers.contains(w['id']),
-                            onChanged: (isAbcent || isBusy)
-                                ? null
-                                : (v) {
-                                    setState(() {
-                                      if (v == true) {
-                                        _selectedWorkers.add(w['id']);
-                                      } else {
-                                        _selectedWorkers.remove(w['id']);
-                                      }
-                                    });
-                                  },
                           );
                         }).toList(),
                       ],
