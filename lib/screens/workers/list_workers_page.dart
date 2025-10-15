@@ -77,7 +77,7 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
                         if (data['workSchedule'] != null)
                         const Icon(
                           Icons.schedule,
-                          color: Colors.indigo,
+                          color: Colors.pinkAccent,
                           size: 20,
                         ),
                       ],

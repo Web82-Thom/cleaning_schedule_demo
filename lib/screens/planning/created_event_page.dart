@@ -13,28 +13,21 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
   final _formKey = GlobalKey<FormState>();
 
   // Firestore
-  final CollectionReference eventsRef = FirebaseFirestore.instance.collection(
-    'events',
-  );
-  final CollectionReference placesRef = FirebaseFirestore.instance.collection(
-    'places',
-  );
-  final CollectionReference workersRef = FirebaseFirestore.instance.collection(
-    'workers',
-  );
+  final CollectionReference eventsRef = FirebaseFirestore.instance.collection('events');
+  final CollectionReference placesRef = FirebaseFirestore.instance.collection('places');
+  final CollectionReference workersRef = FirebaseFirestore.instance.collection('workers');
 
   // Form fields
   DateTime? _selectedDate;
   String _timeSlot = 'morning';
   String? _selectedPlace;
   List<String> _selectedSubPlaces = [];
-
   String _task = '';
-  final List<String> _selectedWorkers = [];
+  List<String> _selectedWorkers = [];
 
   // Data from Firestore
   List<Map<String, dynamic>> _places = [];
-  Map<String, List<String>> _subPlacesMap = {}; // place → sous-lieux
+  Map<String, List<String>> _subPlacesMap = {};
   List<Map<String, dynamic>> _workers = [];
 
   @override
@@ -54,11 +47,7 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
       final data = doc.data() as Map<String, dynamic>;
       final placeName = (data['name'] ?? '').toString().trim();
 
-      // 🔹 On charge la sous-collection "rooms" du lieu
-      final roomsSnapshot = await placesRef
-          .doc(doc.id)
-          .collection('rooms')
-          .get();
+      final roomsSnapshot = await placesRef.doc(doc.id).collection('rooms').get();
       final subPlaces = roomsSnapshot.docs
           .map((r) => (r.data()['name'] ?? '').toString().trim())
           .where((name) => name.isNotEmpty)
@@ -72,26 +61,47 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
       _places = loadedPlaces;
       _subPlacesMap = loadedSubPlaces;
     });
-
-    print('✅ Lieux chargés : $_places');
-    print('✅ Sous-lieux map : $_subPlacesMap');
   }
 
   Future<void> _loadWorkers() async {
     final snapshot = await workersRef.where('active', isEqualTo: true).get();
-    setState(() {
-      _workers = snapshot.docs.map((doc) {
+
+    List<Map<String, dynamic>> workersList = snapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      return {
+        'id': doc.id,
+        'name': '${data['firstName']} ${data['name']}',
+        'isAbcent': data['isAbcent'] ?? false,
+      };
+    }).toList();
+
+    // 🔹 Récupérer tous les événements du même jour
+    Set<String> busyWorkerIds = {};
+    if (_selectedDate != null) {
+      final eventsSnapshot = await eventsRef
+          .where('day', isEqualTo: Timestamp.fromDate(_selectedDate!))
+          .get();
+
+      for (var doc in eventsSnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
+        final timeSlot = data['timeSlot'] ?? '';
+        if (timeSlot == _timeSlot) {
+          final ids = List<String>.from(data['workerIds'] ?? []);
+          busyWorkerIds.addAll(ids);
+        }
+      }
+    }
+
+    setState(() {
+      _workers = workersList.map((w) {
         return {
-          'id': doc.id,
-          'name': '${data['firstName']} ${data['name']}',
-          'isAbcent': data['isAbcent'] ?? false,
+          ...w,
+          'isBusy': busyWorkerIds.contains(w['id']),
         };
       }).toList();
     });
   }
 
-  ///Recupere le numero de la semaine
   int _getWeekNumber(DateTime date) {
     final firstDayOfYear = DateTime(date.year, 1, 1);
     final daysOffset = firstDayOfYear.weekday - DateTime.monday;
@@ -155,11 +165,14 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
                 onTap: () async {
                   final date = await showDatePicker(
                     context: context,
-                    initialDate: DateTime.now(),
+                    initialDate: _selectedDate ?? DateTime.now(),
                     firstDate: DateTime.now(),
                     lastDate: DateTime.now().add(const Duration(days: 365)),
                   );
-                  if (date != null) setState(() => _selectedDate = date);
+                  if (date != null) {
+                    setState(() => _selectedDate = date);
+                    await _loadWorkers(); // 🔹 mettre à jour la disponibilité
+                  }
                 },
               ),
               const SizedBox(height: 16),
@@ -172,7 +185,10 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
                       title: const Text('Matin'),
                       value: 'morning',
                       groupValue: _timeSlot,
-                      onChanged: (v) => setState(() => _timeSlot = v!),
+                      onChanged: (v) {
+                        setState(() => _timeSlot = v!);
+                        _loadWorkers(); // 🔹 mettre à jour la disponibilité
+                      },
                     ),
                   ),
                   Expanded(
@@ -180,7 +196,10 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
                       title: const Text('Après-midi'),
                       value: 'afternoon',
                       groupValue: _timeSlot,
-                      onChanged: (v) => setState(() => _timeSlot = v!),
+                      onChanged: (v) {
+                        setState(() => _timeSlot = v!);
+                        _loadWorkers(); // 🔹 mettre à jour la disponibilité
+                      },
                     ),
                   ),
                 ],
@@ -194,12 +213,8 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
                   border: OutlineInputBorder(),
                 ),
                 items: _places
-                    .map(
-                      (p) => DropdownMenuItem<String>(
-                        value: p['name'],
-                        child: Text(p['name']),
-                      ),
-                    )
+                    .map((p) =>
+                        DropdownMenuItem<String>(value: p['name'], child: Text(p['name'])))
                     .toList(),
                 value: _selectedPlace,
                 onChanged: (v) {
@@ -212,89 +227,35 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
               ),
               const SizedBox(height: 16),
 
-              // 🔹 Sélecteur multiple de sous-lieux
-              if (_selectedPlace != null &&
-                  (_subPlacesMap[_selectedPlace!] ?? []).isNotEmpty) ...[
+              // Sous-lieux
+              if (_selectedPlace != null && (_subPlacesMap[_selectedPlace!] ?? []).isNotEmpty)
                 InputDecorator(
                   decoration: const InputDecoration(
                     labelText: 'Sous-lieux (optionnels)',
                     border: OutlineInputBorder(),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        spacing: 8,
-                        children: (_subPlacesMap[_selectedPlace!] ?? []).map((
-                          sub,
-                        ) {
-                          final isSelected = _selectedSubPlaces.contains(sub);
-                          return FilterChip(
-                            label: Text(sub),
-                            selected: isSelected,
-                            selectedColor: Colors.blue.shade100,
-                            onSelected: (selected) {
-                              setState(() {
-                                if (selected) {
-                                  _selectedSubPlaces.add(sub);
-                                } else {
-                                  _selectedSubPlaces.remove(sub);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                      if (_selectedSubPlaces.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 8),
-                          child: Text(
-                            'Aucun sous-lieu sélectionné',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
-                        )
-                      else
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Sous-lieux sélectionnés :',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              ..._selectedSubPlaces.map(
-                                (sub) => Text('• $sub'),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
+                  child: Wrap(
+                    spacing: 8,
+                    children: (_subPlacesMap[_selectedPlace!] ?? []).map((sub) {
+                      final isSelected = _selectedSubPlaces.contains(sub);
+                      return FilterChip(
+                        label: Text(sub),
+                        selected: isSelected,
+                        selectedColor: Colors.blue.shade100,
+                        onSelected: (selected) {
+                          setState(() {
+                            if (selected) {
+                              _selectedSubPlaces.add(sub);
+                            } else {
+                              _selectedSubPlaces.remove(sub);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
                   ),
                 ),
-                const SizedBox(height: 16),
-              ],
-
-              //               // Sous-lieu dropdown si existant
-              // if (_selectedPlace != null && _subPlacesMap.containsKey(_selectedPlace))
-              //   DropdownButtonFormField<String>(
-              //     decoration: const InputDecoration(
-              //       labelText: 'Sous-lieu (optionnel)',
-              //       border: OutlineInputBorder(),
-              //     ),
-              //     initialValue: _selectedSubPlace,
-              //     items: _subPlacesMap[_selectedPlace]!
-              //         .map((sub) => DropdownMenuItem<String>(
-              //               value: sub,
-              //               child: Text(sub),
-              //             ))
-              //         .toList(),
-              //     onChanged: (v) => setState(() => _selectedSubPlace = v),
-              //   ),
+              const SizedBox(height: 16),
 
               // Tâche
               TextFormField(
@@ -313,39 +274,22 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text('Assigné aux travailleurs'),
+                        ..._workers.map((w) {
+                          final isBusy = w['isBusy'] ?? false;
+                          final isAbcent = w['isAbcent'] ?? false;
 
-                        // Trier et séparer présents / absents
-                        Builder(
-                          builder: (context) {
-                            final presentWorkers =
-                                _workers
-                                    .where((w) => w['isAbcent'] != true)
-                                    .toList()
-                                  ..sort(
-                                    (a, b) => (a['name'] ?? '').compareTo(
-                                      b['name'] ?? '',
-                                    ),
-                                  );
-
-                            final absentWorkers =
-                                _workers
-                                    .where((w) => w['isAbcent'] == true)
-                                    .toList()
-                                  ..sort(
-                                    (a, b) => (a['name'] ?? '').compareTo(
-                                      b['name'] ?? '',
-                                    ),
-                                  );
-
-                            List<Widget> workerWidgets = [];
-
-                            // Présents
-                            workerWidgets.addAll(
-                              presentWorkers.map<Widget>((w) {
-                                return CheckboxListTile(
-                                  title: Text(w['name']),
-                                  value: _selectedWorkers.contains(w['id']),
-                                  onChanged: (v) {
+                          return CheckboxListTile(
+                            title: Text(
+                              w['name'],
+                              style: TextStyle(
+                                color: isAbcent || isBusy ? Colors.grey : null,
+                                decoration: isBusy ? TextDecoration.lineThrough : null,
+                              ),
+                            ),
+                            value: _selectedWorkers.contains(w['id']),
+                            onChanged: (isAbcent || isBusy)
+                                ? null
+                                : (v) {
                                     setState(() {
                                       if (v == true) {
                                         _selectedWorkers.add(w['id']);
@@ -354,43 +298,12 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
                                       }
                                     });
                                   },
-                                );
-                              }).toList(),
-                            );
-
-                            // Séparateur
-                            if (absentWorkers.isNotEmpty) {
-                              workerWidgets.add(
-                                const Divider(
-                                  color: Colors.black38,
-                                  thickness: 0.5,
-                                ),
-                              );
-                            }
-                            // Absents
-                            workerWidgets.addAll(
-                              absentWorkers.map<Widget>((w) {
-                                return CheckboxListTile(
-                                  title: Text(
-                                    w['name'],
-                                    style: TextStyle(
-                                      color: Colors.grey.shade400,
-                                    ),
-                                  ),
-                                  value: false,
-                                  onChanged: null, // case désactivée
-                                );
-                              }).toList(),
-                            );
-
-                            return Column(children: workerWidgets);
-                          },
-                        ),
+                          );
+                        }).toList(),
                       ],
                     ),
 
               const SizedBox(height: 24),
-
               ElevatedButton(
                 onPressed: _submitForm,
                 child: const Text('Créer l’événement'),

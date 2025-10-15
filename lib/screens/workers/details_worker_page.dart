@@ -128,6 +128,26 @@ class _DetailsWorkerPageState extends State<DetailsWorkerPage> {
                         ),
                       ],
                     ),
+                    if (data['workSchedule'] != null)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.schedule,
+                          color: Colors.pinkAccent,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          isAbcent ? 'Actuellement absent' : 'Heure aménager',
+                          style: TextStyle(
+                            color: isAbcent ? Colors.red : Colors.pinkAccent,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                        
                     if (!data['isFullTime']) ...[
                       const SizedBox(height: 32),
                       const Divider(),
