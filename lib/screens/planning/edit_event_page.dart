@@ -32,7 +32,9 @@ class _EditEventPageState extends State<EditEventPage> {
   @override
   void initState() {
     super.initState();
-    eventRef = FirebaseFirestore.instance.collection('events').doc(widget.eventId);
+    eventRef = FirebaseFirestore.instance
+        .collection('events')
+        .doc(widget.eventId);
     _loadInitialData();
   }
 
@@ -47,9 +49,9 @@ class _EditEventPageState extends State<EditEventPage> {
     if (!doc.exists) return;
 
     final data = doc.data() as Map<String, dynamic>;
-    
+
     if (!mounted) return;
-    
+
     setState(() {
       _selectedDate = (data['day'] as Timestamp).toDate();
       _timeSlot = data['timeSlot'];
@@ -86,7 +88,10 @@ class _EditEventPageState extends State<EditEventPage> {
       final data = doc.data();
       final placeName = (data['name'] ?? '').toString().trim();
 
-      final roomsSnapshot = await placesRef.doc(doc.id).collection('rooms').get();
+      final roomsSnapshot = await placesRef
+          .doc(doc.id)
+          .collection('rooms')
+          .get();
       final subPlaces = roomsSnapshot.docs
           .map((r) => (r.data()['name'] ?? '').toString().trim())
           .where((name) => name.isNotEmpty)
@@ -110,6 +115,7 @@ class _EditEventPageState extends State<EditEventPage> {
         'id': doc.id,
         'name': '${data['firstName']} ${data['name']}',
         'isAbcent': data['isAbcent'] ?? false,
+        'workSchedule': data['workSchedule'] ?? {},
       };
     }).toList();
 
@@ -134,15 +140,12 @@ class _EditEventPageState extends State<EditEventPage> {
 
     // 🔹 Ajouter la propriété isBusy
     workersList = workersList.map((w) {
-      return {
-        ...w,
-        'isBusy': busyWorkerIds.contains(w['id']),
-      };
+      return {...w, 'isBusy': busyWorkerIds.contains(w['id'])};
     }).toList();
 
     // ✅ Tri alphabétique par nom
     workersList.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
-if (!mounted) return;
+    if (!mounted) return;
     setState(() {
       _workers = workersList;
     });
@@ -163,9 +166,9 @@ if (!mounted) return;
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Événement mis à jour ✅')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Événement mis à jour ✅')));
         Navigator.pop(context);
       }
     }
@@ -193,9 +196,9 @@ if (!mounted) return;
     if (confirm == true) {
       await eventRef.delete();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Événement supprimé 🗑️')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Événement supprimé 🗑️')));
         Navigator.pop(context);
       }
     }
@@ -211,10 +214,7 @@ if (!mounted) return;
       appBar: AppBar(
         title: const Text('Modifier l’événement'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: _deleteEvent,
-          ),
+          IconButton(icon: const Icon(Icons.delete), onPressed: _deleteEvent),
         ],
       ),
       body: SingleChildScrollView(
@@ -285,10 +285,12 @@ if (!mounted) return;
                   border: OutlineInputBorder(),
                 ),
                 items: _places
-                    .map((p) => DropdownMenuItem<String>(
-                          value: p['name'],
-                          child: Text(p['name']),
-                        ))
+                    .map(
+                      (p) => DropdownMenuItem<String>(
+                        value: p['name'],
+                        child: Text(p['name']),
+                      ),
+                    )
                     .toList(),
                 value: _selectedPlace,
                 onChanged: (v) {
@@ -344,92 +346,149 @@ if (!mounted) return;
               ),
               const SizedBox(height: 16),
 
-              // 👷 Travailleurs
               _workers.isEmpty
-              ? const CircularProgressIndicator()
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Assigné aux travailleurs',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    ..._workers.map((w) {
-                      final isBusy = w['isBusy'] ?? false;
-                      final isAbcent = w['isAbcent'] ?? false;
+                  ? const CircularProgressIndicator()
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Assigné aux travailleurs',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        ..._workers.map((w) {
+                          final isBusy = w['isBusy'] ?? false;
+                          final isAbcent = w['isAbcent'] ?? false;
 
-                      return InkWell(
-                        onLongPress: isBusy? () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Worker occupé'),
-                              content: Text(
-                                  'Voulez-vous assigner ${w['name']} à cet événement quand même ?'),
-                              actions: [
-                                TextButton(
-                                    onPressed: () => Navigator.pop(ctx, false),
-                                    child: const Text('Annuler')),
-                                ElevatedButton(
-                                    onPressed: () => Navigator.pop(ctx, true),
-                                    child: const Text('Oui')),
-                              ],
+                          // 🔹 Jour et créneau pour le schedule
+                          final dayName = _selectedDate != null
+                              ? DateFormat(
+                                  'EEEE',
+                                  'fr_FR',
+                                ).format(_selectedDate!)
+                              : '';
+                          print('Worker: ${w['name']}');
+                          print('Selected day: $dayName');
+                          print(
+                            'Keys in workSchedule: ${w['workSchedule']?.keys}',
+                          );
+                          final workDay =
+                              w['workSchedule']?[dayName.toLowerCase()] ?? {};
+
+                          // 🔹 Vérifie si le worker travaille ce créneau
+                          final worksThisSlot = _timeSlot == 'morning'
+                              ? (workDay['worksMorning'] ?? true)
+                              : (workDay['worksAfternoon'] ?? true);
+
+                          // 🔹 Horaires aménagés (endTime défini et non vide)
+                          final hasSpecialSchedule =
+                              workDay['endTime'] != null &&
+                              workDay['endTime'].toString().isNotEmpty;
+                          print('${w['name']} - $dayName : $workDay');
+                          return InkWell(
+                            onLongPress: isBusy
+                                ? () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: Text('Worker occupé'),
+                                        content: Text(
+                                          'Voulez-vous assigner ${w['name']} à cet événement quand même ?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, false),
+                                            child: const Text('Annuler'),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, true),
+                                            child: const Text('Oui'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (confirm == true) {
+                                      await FirebaseFirestore.instance
+                                          .collection('events')
+                                          .add({
+                                            'day': Timestamp.fromDate(
+                                              _selectedDate!,
+                                            ),
+                                            'timeSlot': _timeSlot,
+                                            'place': _selectedPlace,
+                                            'subPlace': _selectedSubPlaces,
+                                            'task': _task,
+                                            'workerIds': [w['id']],
+                                            'createdAt': Timestamp.now(),
+                                            'updatedAt': Timestamp.now(),
+                                          });
+
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            '${w['name']} assigné à un nouvel événement ✅',
+                                          ),
+                                        ),
+                                      );
+
+                                      _loadWorkers(); // Rafraîchir la liste
+                                    }
+                                  }
+                                : null,
+                            child: CheckboxListTile(
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      w['name'],
+                                      style: TextStyle(
+                                        color:
+                                            (!worksThisSlot ||
+                                                isAbcent ||
+                                                isBusy)
+                                            ? Colors.grey
+                                            : null,
+                                        decoration: isBusy
+                                            ? TextDecoration.lineThrough
+                                            : null,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (hasSpecialSchedule)
+                                    const Padding(
+                                      padding: EdgeInsets.only(left: 5),
+                                      child: Icon(
+                                        Icons.access_time,
+                                        size: 16,
+                                        color: Colors.orange,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              value: _selectedWorkers.contains(w['id']),
+                              onChanged: (!worksThisSlot || isAbcent || isBusy)
+                                  ? null
+                                  : (v) {
+                                      setState(() {
+                                        if (v == true) {
+                                          _selectedWorkers.add(w['id']);
+                                        } else {
+                                          _selectedWorkers.remove(w['id']);
+                                        }
+                                      });
+                                    },
                             ),
                           );
+                        }).toList(),
+                      ],
+                    ),
 
-                          if (confirm == true) {
-                            // 🔹 Créer un nouvel event pour ce worker seulement
-                            await FirebaseFirestore.instance.collection('events').add({
-                              'day': Timestamp.fromDate(_selectedDate!),
-                              'timeSlot': _timeSlot,
-                              'place': _selectedPlace,
-                              'subPlace': _selectedSubPlaces,
-                              'task': _task,
-                              'workerIds': [w['id']],
-                              'createdAt': Timestamp.now(),
-                              'updatedAt': Timestamp.now(),
-                            });
-
-                            // 🔹 Recharger la liste des workers pour mettre à jour l'état occupé
-                            await _loadWorkers();
-
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    '${w['name']} assigné à un nouvel événement ✅',
-                                  )),
-                              );
-                            }
-                          }
-                        }
-                      : null,
-                      child: CheckboxListTile(
-                        title: Text(
-                          w['name'],
-                          style: TextStyle(
-                            color: isAbcent || isBusy ? Colors.grey : null,
-                            decoration: isBusy
-                                ? TextDecoration.lineThrough
-                                : null,
-                          ),
-                        ),
-                        value: _selectedWorkers.contains(w['id']),
-                        onChanged: (isBusy || isAbcent)
-                            ? null
-                            : (v) {
-                              if (!mounted) return;
-                                setState(() {
-                                  if (v == true) {
-                                    _selectedWorkers.add(w['id']);
-                                  } else {
-                                    _selectedWorkers.remove(w['id']);
-                                  }
-                                });
-                              },
-                      ),
-                    );
-                  }).toList(),
-                ],
-              ),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _saveChanges,

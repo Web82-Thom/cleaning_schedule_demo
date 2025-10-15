@@ -1,6 +1,7 @@
 import 'package:cleaning_schedule/models/event_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class CreatedEventPage extends StatefulWidget {
   const CreatedEventPage({super.key});
@@ -12,12 +13,15 @@ class CreatedEventPage extends StatefulWidget {
 class _CreatedEventPageState extends State<CreatedEventPage> {
   final _formKey = GlobalKey<FormState>();
 
-  final CollectionReference eventsRef =
-      FirebaseFirestore.instance.collection('events');
-  final CollectionReference placesRef =
-      FirebaseFirestore.instance.collection('places');
-  final CollectionReference workersRef =
-      FirebaseFirestore.instance.collection('workers');
+  final CollectionReference eventsRef = FirebaseFirestore.instance.collection(
+    'events',
+  );
+  final CollectionReference placesRef = FirebaseFirestore.instance.collection(
+    'places',
+  );
+  final CollectionReference workersRef = FirebaseFirestore.instance.collection(
+    'workers',
+  );
 
   DateTime? _selectedDate;
   String _timeSlot = 'morning';
@@ -47,7 +51,10 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
       final data = doc.data() as Map<String, dynamic>;
       final placeName = (data['name'] ?? '').toString().trim();
 
-      final roomsSnapshot = await placesRef.doc(doc.id).collection('rooms').get();
+      final roomsSnapshot = await placesRef
+          .doc(doc.id)
+          .collection('rooms')
+          .get();
       final subPlaces = roomsSnapshot.docs
           .map((r) => (r.data()['name'] ?? '').toString().trim())
           .where((name) => name.isNotEmpty)
@@ -72,6 +79,7 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
         'id': doc.id,
         'name': '${data['firstName']} ${data['name']}',
         'isAbcent': data['isAbcent'] ?? false,
+        'workSchedule': data['workSchedule'] ?? {},
       };
     }).toList();
 
@@ -94,10 +102,7 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
 
     // 🔹 Ajoute la propriété isBusy et trie par nom
     workersList = workersList.map((w) {
-      return {
-        ...w,
-        'isBusy': busyWorkerIds.contains(w['id']),
-      };
+      return {...w, 'isBusy': busyWorkerIds.contains(w['id'])};
     }).toList();
 
     // ✅ Tri alphabétique par nom
@@ -119,7 +124,9 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
     if (_formKey.currentState?.validate() != true) return;
     if (_selectedDate == null || _selectedPlace == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner une date et un lieu')),
+        const SnackBar(
+          content: Text('Veuillez sélectionner une date et un lieu'),
+        ),
       );
       return;
     }
@@ -217,8 +224,12 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
                   border: OutlineInputBorder(),
                 ),
                 items: _places
-                    .map((p) =>
-                        DropdownMenuItem<String>(value: p['name'], child: Text(p['name'])))
+                    .map(
+                      (p) => DropdownMenuItem<String>(
+                        value: p['name'],
+                        child: Text(p['name']),
+                      ),
+                    )
                     .toList(),
                 value: _selectedPlace,
                 onChanged: (v) {
@@ -232,7 +243,8 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
               const SizedBox(height: 16),
 
               // 🏠 Sous-lieux
-              if (_selectedPlace != null && (_subPlacesMap[_selectedPlace!] ?? []).isNotEmpty)
+              if (_selectedPlace != null &&
+                  (_subPlacesMap[_selectedPlace!] ?? []).isNotEmpty)
                 InputDecorator(
                   decoration: const InputDecoration(
                     labelText: 'Sous-lieux (optionnels)',
@@ -277,53 +289,123 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Assigné aux travailleurs'),
+                        const Text(
+                          'Assigné aux travailleurs',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         ..._workers.map((w) {
                           final isBusy = w['isBusy'] ?? false;
                           final isAbcent = w['isAbcent'] ?? false;
 
+                          // 🔹 Jour et créneau pour le schedule
+                          final dayName = _selectedDate != null
+                              ? DateFormat(
+                                  'EEEE',
+                                  'fr_FR',
+                                ).format(_selectedDate!)
+                              : '';
+
+                          final workDay =
+                              w['workSchedule']?[dayName.toLowerCase()] ?? {};
+
+                          // 🔹 Vérifie si le worker travaille ce créneau
+                          final worksThisSlot = _timeSlot == 'morning'
+                              ? (workDay['worksMorning'] ?? true)
+                              : (workDay['worksAfternoon'] ?? true);
+
+                          // 🔹 Horaires aménagés (endTime défini et non vide)
+                          final hasSpecialSchedule =
+                              workDay['endTime'] != null &&
+                              workDay['endTime'].toString().isNotEmpty;
                           return InkWell(
-                            onLongPress: isBusy ? () async {
-  final confirm = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text('Worker occupé'),
-      content: Text('Voulez-vous assigner ${w['name']} à cet événement quand même ?'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-        ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Oui')),
-      ],
-    ),
-  );
+                            onLongPress: isBusy
+                                ? () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: Text('Worker occupé'),
+                                        content: Text(
+                                          'Voulez-vous assigner ${w['name']} à cet événement quand même ?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, false),
+                                            child: const Text('Annuler'),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, true),
+                                            child: const Text('Oui'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
 
-  if (confirm == true) {
-    // 🔹 Créer un nouvel event pour ce worker seulement
-    await FirebaseFirestore.instance.collection('events').add({
-      'day': Timestamp.fromDate(_selectedDate!),
-      'timeSlot': _timeSlot,
-      'place': _selectedPlace,
-      'subPlace': _selectedSubPlaces,
-      'task': _task,
-      'workerIds': [w['id']],
-      'createdAt': Timestamp.now(),
-      'updatedAt': Timestamp.now(),
-    });
+                                    if (confirm == true) {
+                                      await FirebaseFirestore.instance
+                                          .collection('events')
+                                          .add({
+                                            'day': Timestamp.fromDate(
+                                              _selectedDate!,
+                                            ),
+                                            'timeSlot': _timeSlot,
+                                            'place': _selectedPlace,
+                                            'subPlace': _selectedSubPlaces,
+                                            'task': _task,
+                                            'workerIds': [w['id']],
+                                            'createdAt': Timestamp.now(),
+                                            'updatedAt': Timestamp.now(),
+                                          });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${w['name']} assigné à un nouvel événement ✅')),
-    );
-  }
-} : null,
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            '${w['name']} assigné à un nouvel événement ✅',
+                                          ),
+                                        ),
+                                      );
+
+                                      _loadWorkers(); // Rafraîchir la liste
+                                    }
+                                  }
+                                : null,
                             child: CheckboxListTile(
-                              title: Text(
-                                w['name'],
-                                style: TextStyle(
-                                  color: isAbcent || isBusy ? Colors.grey : null,
-                                  decoration: isBusy ? TextDecoration.lineThrough : null,
-                                ),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      w['name'],
+                                      style: TextStyle(
+                                        color:
+                                            (!worksThisSlot ||
+                                                isAbcent ||
+                                                isBusy)
+                                            ? Colors.grey
+                                            : null,
+                                        decoration: isBusy
+                                            ? TextDecoration.lineThrough
+                                            : null,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (hasSpecialSchedule)
+                                    const Padding(
+                                      padding: EdgeInsets.only(left: 5),
+                                      child: Icon(
+                                        Icons.access_time,
+                                        size: 16,
+                                        color: Colors.orange,
+                                      ),
+                                    ),
+                                ],
                               ),
                               value: _selectedWorkers.contains(w['id']),
-                              onChanged: (isAbcent || isBusy)
+                              onChanged: (!worksThisSlot || isAbcent || isBusy)
                                   ? null
                                   : (v) {
                                       setState(() {
