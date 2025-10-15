@@ -12,12 +12,13 @@ class CreatedEventPage extends StatefulWidget {
 class _CreatedEventPageState extends State<CreatedEventPage> {
   final _formKey = GlobalKey<FormState>();
 
-  // Firestore
-  final CollectionReference eventsRef = FirebaseFirestore.instance.collection('events');
-  final CollectionReference placesRef = FirebaseFirestore.instance.collection('places');
-  final CollectionReference workersRef = FirebaseFirestore.instance.collection('workers');
+  final CollectionReference eventsRef =
+      FirebaseFirestore.instance.collection('events');
+  final CollectionReference placesRef =
+      FirebaseFirestore.instance.collection('places');
+  final CollectionReference workersRef =
+      FirebaseFirestore.instance.collection('workers');
 
-  // Form fields
   DateTime? _selectedDate;
   String _timeSlot = 'morning';
   String? _selectedPlace;
@@ -25,7 +26,6 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
   String _task = '';
   List<String> _selectedWorkers = [];
 
-  // Data from Firestore
   List<Map<String, dynamic>> _places = [];
   Map<String, List<String>> _subPlacesMap = {};
   List<Map<String, dynamic>> _workers = [];
@@ -92,13 +92,19 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
       }
     }
 
+    // 🔹 Ajoute la propriété isBusy et trie par nom
+    workersList = workersList.map((w) {
+      return {
+        ...w,
+        'isBusy': busyWorkerIds.contains(w['id']),
+      };
+    }).toList();
+
+    // ✅ Tri alphabétique par nom
+    workersList.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
+
     setState(() {
-      _workers = workersList.map((w) {
-        return {
-          ...w,
-          'isBusy': busyWorkerIds.contains(w['id']),
-        };
-      }).toList();
+      _workers = workersList;
     });
   }
 
@@ -113,9 +119,7 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
     if (_formKey.currentState?.validate() != true) return;
     if (_selectedDate == null || _selectedPlace == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Veuillez sélectionner une date et un lieu'),
-        ),
+        const SnackBar(content: Text('Veuillez sélectionner une date et un lieu')),
       );
       return;
     }
@@ -154,7 +158,7 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
           key: _formKey,
           child: Column(
             children: [
-              // DatePicker
+              // 📅 Sélection de date
               ListTile(
                 title: Text(
                   _selectedDate == null
@@ -171,13 +175,13 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
                   );
                   if (date != null) {
                     setState(() => _selectedDate = date);
-                    await _loadWorkers(); // 🔹 mettre à jour la disponibilité
+                    await _loadWorkers();
                   }
                 },
               ),
               const SizedBox(height: 16),
 
-              // Tranche horaire
+              // 🕓 Tranche horaire
               Row(
                 children: [
                   Expanded(
@@ -187,7 +191,7 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
                       groupValue: _timeSlot,
                       onChanged: (v) {
                         setState(() => _timeSlot = v!);
-                        _loadWorkers(); // 🔹 mettre à jour la disponibilité
+                        _loadWorkers();
                       },
                     ),
                   ),
@@ -198,7 +202,7 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
                       groupValue: _timeSlot,
                       onChanged: (v) {
                         setState(() => _timeSlot = v!);
-                        _loadWorkers(); // 🔹 mettre à jour la disponibilité
+                        _loadWorkers();
                       },
                     ),
                   ),
@@ -206,7 +210,7 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
               ),
               const SizedBox(height: 16),
 
-              // Lieu
+              // 📍 Lieu
               DropdownButtonFormField<String>(
                 decoration: const InputDecoration(
                   labelText: 'Lieu',
@@ -227,7 +231,7 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
               ),
               const SizedBox(height: 16),
 
-              // Sous-lieux
+              // 🏠 Sous-lieux
               if (_selectedPlace != null && (_subPlacesMap[_selectedPlace!] ?? []).isNotEmpty)
                 InputDecorator(
                   decoration: const InputDecoration(
@@ -257,7 +261,7 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
                 ),
               const SizedBox(height: 16),
 
-              // Tâche
+              // 🧹 Tâche
               TextFormField(
                 decoration: const InputDecoration(
                   labelText: 'Tâche (optionnelle)',
@@ -267,7 +271,7 @@ class _CreatedEventPageState extends State<CreatedEventPage> {
               ),
               const SizedBox(height: 16),
 
-              // Workers assignés
+              // 👷 Workers
               _workers.isEmpty
                   ? const CircularProgressIndicator()
                   : Column(

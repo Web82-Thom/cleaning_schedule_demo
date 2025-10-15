@@ -16,7 +16,7 @@ class _EditEventPageState extends State<EditEventPage> {
 
   bool _loading = true;
 
-  // Données de Firestore
+  // Données Firestore
   List<Map<String, dynamic>> _places = [];
   Map<String, List<String>> _subPlacesMap = {};
   List<Map<String, dynamic>> _workers = [];
@@ -32,15 +32,14 @@ class _EditEventPageState extends State<EditEventPage> {
   @override
   void initState() {
     super.initState();
-    eventRef =
-        FirebaseFirestore.instance.collection('events').doc(widget.eventId);
+    eventRef = FirebaseFirestore.instance.collection('events').doc(widget.eventId);
     _loadInitialData();
   }
 
   Future<void> _loadInitialData() async {
-      await _loadPlaces();      // Charger les lieux
-  await _loadEventData();   // Charger l'événement (date + timeSlot)
-  await _loadWorkers();     // Ensuite charger les workers avec la date et créneau connus
+    await _loadPlaces();
+    await _loadEventData();
+    await _loadWorkers();
   }
 
   Future<void> _loadEventData() async {
@@ -56,7 +55,7 @@ class _EditEventPageState extends State<EditEventPage> {
       _task = data['task'];
       _selectedWorkers = List<String>.from(data['workerIds'] ?? []);
 
-      // 🔹 Convertir subPlace (string ou list)
+      // 🔹 Convertir subPlace (string ou liste)
       final subPlaceData = data['subPlace'];
       if (subPlaceData is List) {
         _selectedSubPlaces = List<String>.from(subPlaceData);
@@ -108,6 +107,7 @@ class _EditEventPageState extends State<EditEventPage> {
       return {
         'id': doc.id,
         'name': '${data['firstName']} ${data['name']}',
+        'isAbcent': data['isAbcent'] ?? false,
       };
     }).toList();
 
@@ -120,7 +120,7 @@ class _EditEventPageState extends State<EditEventPage> {
           .get();
 
       for (var doc in eventsSnapshot.docs) {
-        if (doc.id == widget.eventId) continue; // Exclure l'événement en cours
+        if (doc.id == widget.eventId) continue; // exclure l'événement en cours
         final data = doc.data();
         final timeSlot = data['timeSlot'] ?? '';
         if (timeSlot == _timeSlot) {
@@ -130,16 +130,21 @@ class _EditEventPageState extends State<EditEventPage> {
       }
     }
 
+    // 🔹 Ajouter la propriété isBusy
+    workersList = workersList.map((w) {
+      return {
+        ...w,
+        'isBusy': busyWorkerIds.contains(w['id']),
+      };
+    }).toList();
+
+    // ✅ Tri alphabétique par nom
+    workersList.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
+
     setState(() {
-      _workers = workersList.map((w) {
-        return {
-          ...w,
-          'isBusy': busyWorkerIds.contains(w['id']),
-        };
-      }).toList();
+      _workers = workersList;
     });
   }
-
 
   Future<void> _saveChanges() async {
     if (_formKey.currentState!.validate()) {
@@ -218,9 +223,11 @@ class _EditEventPageState extends State<EditEventPage> {
             children: [
               // 📅 Date
               ListTile(
-                title: Text(_selectedDate == null
-                    ? 'Sélectionner une date'
-                    : 'Date: ${DateFormat('dd/MM/yyyy').format(_selectedDate!)}'),
+                title: Text(
+                  _selectedDate == null
+                      ? 'Sélectionner une date'
+                      : 'Date: ${DateFormat('dd/MM/yyyy').format(_selectedDate!)}',
+                ),
                 trailing: const Icon(Icons.calendar_today),
                 onTap: () async {
                   final date = await showDatePicker(
@@ -231,7 +238,7 @@ class _EditEventPageState extends State<EditEventPage> {
                   );
                   if (date != null) {
                     setState(() => _selectedDate = date);
-                    await _loadWorkers(); // 🔹 mettre à jour la disponibilité
+                    await _loadWorkers();
                   }
                 },
               ),
@@ -246,11 +253,9 @@ class _EditEventPageState extends State<EditEventPage> {
                       value: 'morning',
                       groupValue: _timeSlot,
                       onChanged: (v) {
-                      setState(() {
-                        _timeSlot = v!;
-                      });
-                      _loadWorkers(); // 🔹 mettre à jour la disponibilité
-                    },
+                        setState(() => _timeSlot = v!);
+                        _loadWorkers();
+                      },
                     ),
                   ),
                   Expanded(
@@ -259,11 +264,9 @@ class _EditEventPageState extends State<EditEventPage> {
                       value: 'afternoon',
                       groupValue: _timeSlot,
                       onChanged: (v) {
-                      setState(() {
-                        _timeSlot = v!;
-                      });
-                      _loadWorkers(); // 🔹 mettre à jour la disponibilité
-                    },
+                        setState(() => _timeSlot = v!);
+                        _loadWorkers();
+                      },
                     ),
                   ),
                 ],
@@ -278,7 +281,9 @@ class _EditEventPageState extends State<EditEventPage> {
                 ),
                 items: _places
                     .map((p) => DropdownMenuItem<String>(
-                        value: p['name'], child: Text(p['name'])))
+                          value: p['name'],
+                          child: Text(p['name']),
+                        ))
                     .toList(),
                 value: _selectedPlace,
                 onChanged: (v) {
@@ -340,36 +345,36 @@ class _EditEventPageState extends State<EditEventPage> {
                       children: [
                         const Text('Assigné aux travailleurs',
                             style: TextStyle(fontWeight: FontWeight.bold)),
-                        ..._workers.map(
-  (w) {
-    final isBusy = w['isBusy'] ?? false;
-    return CheckboxListTile(
-      title: Text(
-        w['name'],
-        style: TextStyle(
-          color: isBusy ? Colors.grey : null,
-          decoration: isBusy ? TextDecoration.lineThrough : null,
-        ),
-      ),
-      value: _selectedWorkers.contains(w['id']),
-      onChanged: isBusy
-          ? null // désactivé si occupé
-          : (v) {
-              setState(() {
-                if (v == true) {
-                  _selectedWorkers.add(w['id']);
-                } else {
-                  _selectedWorkers.remove(w['id']);
-                }
-              });
-            },
-    );
-  },
-).toList(),
+                        ..._workers.map((w) {
+                          final isBusy = w['isBusy'] ?? false;
+                          final isAbcent = w['isAbcent'] ?? false;
 
+                          return CheckboxListTile(
+                            title: Text(
+                              w['name'],
+                              style: TextStyle(
+                                color: isAbcent || isBusy ? Colors.grey : null,
+                                decoration: isBusy
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                              ),
+                            ),
+                            value: _selectedWorkers.contains(w['id']),
+                            onChanged: (isBusy || isAbcent)
+                                ? null
+                                : (v) {
+                                    setState(() {
+                                      if (v == true) {
+                                        _selectedWorkers.add(w['id']);
+                                      } else {
+                                        _selectedWorkers.remove(w['id']);
+                                      }
+                                    });
+                                  },
+                          );
+                        }).toList(),
                       ],
                     ),
-
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _saveChanges,
