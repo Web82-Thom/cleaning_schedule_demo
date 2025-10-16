@@ -9,6 +9,7 @@ class RdvModel {
   final String? lieu;
   final String heure;
   final Timestamp createdAt;
+  final List<String> monitorIds; // 👈 Liste des moniteurs associés
 
   RdvModel({
     required this.id,
@@ -19,6 +20,7 @@ class RdvModel {
     required this.heure,
     this.lieu,
     required this.createdAt,
+    required this.monitorIds,
   });
 
   Map<String, dynamic> toFirestore() {
@@ -30,6 +32,7 @@ class RdvModel {
       'lieu': lieu ?? '',
       'heure': heure,
       'createdAt': createdAt,
+      'monitorIds': monitorIds, // ✅ clé correcte et cohérente
     };
   }
 
@@ -43,6 +46,7 @@ class RdvModel {
       lieu: data['lieu'] ?? '',
       heure: data['heure'] ?? '',
       createdAt: data['createdAt'] ?? Timestamp.now(),
+      monitorIds: (data['monitorIds'] as List?)?.map((e) => e.toString()).toList() ?? [], // ✅ toujours une liste
     );
   }
 
@@ -55,6 +59,7 @@ class RdvModel {
     String? lieu,
     String? heure,
     Timestamp? createdAt,
+    List<String>? monitorIds,
   }) {
     return RdvModel(
       id: id ?? this.id,
@@ -65,6 +70,7 @@ class RdvModel {
       lieu: lieu ?? this.lieu,
       heure: heure ?? this.heure,
       createdAt: createdAt ?? this.createdAt,
+      monitorIds: monitorIds ?? this.monitorIds,
     );
   }
 

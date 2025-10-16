@@ -1,3 +1,4 @@
+import 'package:cleaning_schedule/controllers/auth_controller.dart';
 import 'package:cleaning_schedule/controllers/rdv_controller.dart';
 import 'package:cleaning_schedule/controllers/workers_controller.dart';
 import 'package:cleaning_schedule/models/rdv_model.dart';
@@ -16,8 +17,10 @@ class RdvCalendarPage extends StatefulWidget {
 class _RdvCalendarPageState extends State<RdvCalendarPage> {
   final RdvController _rdvController = RdvController();
   final WorkersController _workersController = WorkersController();
+  final AuthController _authController = AuthController();
 
   Map<DateTime, List<RdvModel>> rdvEvents = {};
+  Map<String, String> monitorsMap = {};
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   bool _loading = true;
@@ -26,23 +29,31 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
   void initState() {
     super.initState();
     _loadRdvs();
-    _workersController.loadWorkers();
+    _loadWorkers();
+    _loadMonitors();
   }
 
-  // Chargement des RDVs depuis Firestore
   Future<void> _loadRdvs() async {
     setState(() => _loading = true);
     rdvEvents = await _rdvController.loadRdvs();
     setState(() => _loading = false);
   }
 
-  // Récupérer les RDVs pour un jour donné
+  Future<void> _loadWorkers() async {
+    await _workersController.loadWorkers();
+    setState(() {});
+  }
+
+  Future<void> _loadMonitors() async {
+    monitorsMap = await _authController.loadMonitorsMap();
+    setState(() {});
+  }
+
   List<RdvModel> _getEventsForDay(DateTime day) {
     final d = DateTime(day.year, day.month, day.day);
     return rdvEvents[d] ?? [];
   }
 
-  // Ouvre le formulaire de création/modification
   Future<bool> _openRdvForm({RdvModel? rdv, DateTime? initialDate}) async {
     final result = await Navigator.push(
       context,
@@ -51,13 +62,32 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
           rdvData: rdv,
           initialDate: initialDate,
           workersMap: _workersController.workersMap,
+          monitorsMap: monitorsMap,
         ),
       ),
     );
-    return result == true; // Retourne true si RDV créé/modifié
+    return result == true;
   }
 
-  // BottomSheet affichant les RDVs d'une journée
+  String getRdvLabel(RdvModel rdv) {
+    if (rdv.workerId == "TEAM") return "Équipe";
+    if (rdv.workerId.isNotEmpty) {
+      return _workersController.workersMap[rdv.workerId] ?? "Inconnu";
+    }
+    if (rdv.monitorIds.isNotEmpty) return "Moniteur(s)";
+    return "Inconnu";
+  }
+
+  String getRdvSubtitle(RdvModel rdv) {
+    String text = rdv.heure;
+    if (rdv.lieu?.isNotEmpty == true) text += " • ${rdv.lieu}";
+    if (rdv.monitorIds.isNotEmpty) {
+      final monitorsNames = rdv.monitorIds.map((id) => monitorsMap[id] ?? "Inconnu").join(", ");
+      text += " • $monitorsNames";
+    }
+    return text;
+  }
+
   Future<void> _openDayRdvsPage(DateTime day) async {
     final dayKey = DateTime(day.year, day.month, day.day);
     List<RdvModel> events = List.from(_getEventsForDay(dayKey));
@@ -67,68 +97,44 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => SafeArea(
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Rendez-vous du ${DateFormat('dd/MM/yyyy').format(day)}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    ...events.map(
-                      (rdv) => Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Rendez-vous du ${DateFormat('dd/MM/yyyy').format(day)}',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  ...events.map((rdv) => Card(
                         margin: const EdgeInsets.symmetric(vertical: 6),
                         child: ListTile(
-                          title: Text(
-                            '${rdv.workerId == "TEAM" ? "Équipe" : (_workersController.workersMap[rdv.workerId] ?? "Inconnu")} • ${rdv.motif}',
-                          ),
-                          subtitle: Text(
-                            '${rdv.heure}${rdv.lieu?.isNotEmpty == true ? ' • ${rdv.lieu}' : ''}',
-                          ),
+                          title: Text('${getRdvLabel(rdv)} • ${rdv.motif}'),
+                          subtitle: Text(getRdvSubtitle(rdv)),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Colors.blueAccent,
-                                ),
+                                icon: const Icon(Icons.edit, color: Colors.blueAccent),
                                 onPressed: () async {
                                   final result = await _openRdvForm(rdv: rdv);
-                                  if (result == true) {
-                                    // Recharge depuis Firestore et update map
-                                    final updatedEvents = await _rdvController
-                                        .loadRdvs();
+                                  if (result) {
+                                    final updatedEvents = await _rdvController.loadRdvs();
                                     setState(() => rdvEvents = updatedEvents);
                                     setModalState(() {
-                                      events = List.from(
-                                        rdvEvents[dayKey] ?? [],
-                                      );
+                                      events = List.from(rdvEvents[dayKey] ?? []);
                                     });
                                   }
                                 },
                               ),
                               IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.redAccent,
-                                ),
+                                icon: const Icon(Icons.delete, color: Colors.redAccent),
                                 onPressed: () async {
-                                  final deleted = await _rdvController
-                                      .deleteRdv(context, rdv);
+                                  final deleted = await _rdvController.deleteRdv(context, rdv);
                                   if (deleted) {
-                                    // Supprime dans map principale
-                                    rdvEvents[dayKey]?.removeWhere(
-                                      (e) => e.id == rdv.id,
-                                    );
+                                    rdvEvents[dayKey]?.removeWhere((e) => e.id == rdv.id);
                                     setModalState(() {
                                       events.removeWhere((e) => e.id == rdv.id);
                                     });
@@ -138,27 +144,23 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
                             ],
                           ),
                         ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    ListTile(
-                      leading: const Icon(Icons.add),
-                      title: const Text('Ajouter un RDV'),
-                      onTap: () async {
-                        final result = await _openRdvForm(initialDate: day);
-                        if (result == true) {
-                          final updatedEvents = await _rdvController.loadRdvs();
-                          setState(() => rdvEvents = updatedEvents);
-                          setModalState(() {
-                            events = List.from(rdvEvents[dayKey] ?? []);
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
+                      )),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    leading: const Icon(Icons.add),
+                    title: const Text('Ajouter un RDV'),
+                    onTap: () async {
+                      final result = await _openRdvForm(initialDate: day);
+                      if (result) {
+                        final updatedEvents = await _rdvController.loadRdvs();
+                        setState(() => rdvEvents = updatedEvents);
+                        setModalState(() {
+                          events = List.from(rdvEvents[dayKey] ?? []);
+                        });
+                      }
+                    },
+                  ),
+                ],
               ),
             ),
           ),
@@ -169,18 +171,17 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading)
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Rendez-vous')),
       body: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
+        builder: (context, constraints) {
           return SingleChildScrollView(
             child: Column(
               children: [
-                ConstrainedBox( 
-                  constraints: const BoxConstraints( maxHeight: 600,), 
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 600),
                   child: TableCalendar(
                     rowHeight: 60,
                     daysOfWeekHeight: 30,
@@ -194,7 +195,6 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
                     onDaySelected: (selectedDay, focusedDay) {
                       setState(() => _focusedDay = focusedDay);
                       _selectedDay = selectedDay;
-                                  
                       final events = _getEventsForDay(selectedDay);
                       if (events.isNotEmpty) {
                         _openDayRdvsPage(selectedDay);

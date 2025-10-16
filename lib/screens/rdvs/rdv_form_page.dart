@@ -1,3 +1,4 @@
+import 'package:cleaning_schedule/controllers/auth_controller.dart';
 import 'package:cleaning_schedule/controllers/rdv_controller.dart';
 import 'package:cleaning_schedule/models/rdv_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,9 +10,15 @@ class RdvFormPage extends StatefulWidget {
   final RdvModel? rdvData;
   final DateTime? initialDate;
   final Map<String, String>? workersMap;
+  final Map<String, String>? monitorsMap;
 
-  const RdvFormPage({this.rdvData, this.initialDate, this.workersMap, Key? key})
-    : super(key: key);
+  const RdvFormPage({
+    this.rdvData,
+    this.initialDate,
+    this.workersMap,
+    this.monitorsMap,
+    Key? key,
+  }) : super(key: key);
 
   @override
   State<RdvFormPage> createState() => _RdvFormPageState();
@@ -20,6 +27,7 @@ class RdvFormPage extends StatefulWidget {
 class _RdvFormPageState extends State<RdvFormPage> {
   final _formKey = GlobalKey<FormState>();
   final RdvController _controller = RdvController();
+  final AuthController _authController = AuthController();
   final user = FirebaseAuth.instance.currentUser;
 
   DateTime? selectedDate;
@@ -28,7 +36,9 @@ class _RdvFormPageState extends State<RdvFormPage> {
   String? selectedWorkerId;
   bool isTeam = false;
 
-  late final Map<String, String> workersMap;
+  Map<String, String> workersMap = {};
+  Map<String, String> monitorsMap = {};
+  List<String> selectedMonitorIds = [];
 
   @override
   void initState() {
@@ -37,19 +47,26 @@ class _RdvFormPageState extends State<RdvFormPage> {
     motif = widget.rdvData?.motif ?? '';
     lieu = widget.rdvData?.lieu ?? '';
     selectedWorkerId = widget.rdvData?.workerId;
+    selectedMonitorIds = widget.rdvData?.monitorIds ?? [];
     isTeam = selectedWorkerId == 'TEAM';
     workersMap = widget.workersMap ?? {};
-    if (isTeam) selectedWorkerId = null;
+    monitorsMap = {}; // vide au départ
+  if (isTeam) selectedWorkerId = null;
+
+  _loadMonitors();
   }
+
+  Future<void> _loadMonitors() async {
+  monitorsMap = await _authController.loadMonitorsMap();
+  setState(() {});
+}
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
         appBar: AppBar(
-          title: Text(
-            widget.rdvData == null ? 'Créer un RDV' : 'Modifier un RDV',
-          ),
+          title: Text(widget.rdvData == null ? 'Créer un RDV' : 'Modifier un RDV'),
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -57,7 +74,7 @@ class _RdvFormPageState extends State<RdvFormPage> {
             key: _formKey,
             child: Column(
               children: [
-                // Date & heure
+                // 🗓️ Date & heure
                 TextFormField(
                   readOnly: true,
                   decoration: const InputDecoration(
@@ -73,8 +90,7 @@ class _RdvFormPageState extends State<RdvFormPage> {
                   ),
                   onTap: () async {
                     final now = DateTime.now();
-                    final initial =
-                        (selectedDate != null && !selectedDate!.isBefore(now))
+                    final initial = (selectedDate != null && !selectedDate!.isBefore(now))
                         ? selectedDate!
                         : now;
 
@@ -88,9 +104,7 @@ class _RdvFormPageState extends State<RdvFormPage> {
                     if (pickedDate != null) {
                       final pickedTime = await showTimePicker(
                         context: context,
-                        initialTime: TimeOfDay.fromDateTime(
-                          selectedDate ?? now,
-                        ),
+                        initialTime: TimeOfDay.fromDateTime(selectedDate ?? now),
                       );
                       if (pickedTime != null) {
                         setState(() {
@@ -108,7 +122,7 @@ class _RdvFormPageState extends State<RdvFormPage> {
                 ),
                 const SizedBox(height: 12),
 
-                // Motif
+                // 🧾 Motif
                 TextFormField(
                   decoration: const InputDecoration(labelText: 'Motif'),
                   validator: (value) =>
@@ -118,17 +132,15 @@ class _RdvFormPageState extends State<RdvFormPage> {
                 ),
                 const SizedBox(height: 12),
 
-                // Lieu
+                // 📍 Lieu
                 TextFormField(
-                  decoration: const InputDecoration(
-                    labelText: 'Lieu (optionnel)',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Lieu (optionnel)'),
                   initialValue: lieu,
                   onChanged: (value) => lieu = value,
                 ),
                 const SizedBox(height: 12),
 
-                // Équipe
+                // 👥 Équipe
                 CheckboxListTile(
                   title: const Text('Équipe'),
                   value: isTeam,
@@ -141,7 +153,7 @@ class _RdvFormPageState extends State<RdvFormPage> {
                 ),
                 const SizedBox(height: 12),
 
-                // Travailleur
+                // 👷‍♂️ Travailleur
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
                     labelText: 'Travailleur',
@@ -162,19 +174,50 @@ class _RdvFormPageState extends State<RdvFormPage> {
                       : (value) {
                           setState(() => selectedWorkerId = value);
                         },
-                  validator: (value) =>
-                      (!isTeam && (value == null || value.isEmpty))
-                      ? 'Sélectionnez un travailleur'
-                      : null,
+                  validator: (value) {
+                    if (!isTeam &&
+                        selectedMonitorIds.isEmpty &&
+                        (value == null || value.isEmpty)) {
+                      return 'Sélectionnez un travailleur ou un moniteur';
+                    }
+                    return null;
+                  },
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
-                // Enregistrer
+                // 🎓 Moniteurs associés
+                if (monitorsMap.isNotEmpty)
+  Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Moniteurs associés',
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      ...monitorsMap.entries.map(
+        (entry) => CheckboxListTile(
+          title: Text(entry.value),
+          value: selectedMonitorIds.contains(entry.key),
+          onChanged: (checked) {
+            setState(() {
+              if (checked == true) {
+                selectedMonitorIds.add(entry.key);
+              } else {
+                selectedMonitorIds.remove(entry.key);
+              }
+            });
+          },
+        ),
+      ),
+    ],
+  ),
+
+                const SizedBox(height: 24),
+
+                // 💾 Enregistrer
                 ElevatedButton(
                   onPressed: () async {
-                    if (_formKey.currentState!.validate() &&
-                        selectedDate != null &&
-                        (isTeam || selectedWorkerId != null)) {
+                    if (_formKey.currentState!.validate() && selectedDate != null) {
                       final rdv = RdvModel(
                         id: widget.rdvData?.id ?? '',
                         instructorId: user!.uid,
@@ -182,16 +225,13 @@ class _RdvFormPageState extends State<RdvFormPage> {
                         heure: DateFormat('HH:mm').format(selectedDate!),
                         motif: motif,
                         lieu: lieu,
-                        workerId: isTeam ? 'TEAM' : selectedWorkerId!,
+                        workerId: isTeam ? 'TEAM' : (selectedWorkerId ?? ''),
+                        monitorIds: selectedMonitorIds,
                         createdAt: Timestamp.now(),
                       );
 
                       await _controller.saveRdv(context, rdv);
-
-                      Navigator.pop(
-                        context,
-                        true,
-                      ); // ← renvoyer true pour recharger
+                      if (context.mounted) Navigator.pop(context, true);
                     }
                   },
                   child: const Text('Enregistrer'),
