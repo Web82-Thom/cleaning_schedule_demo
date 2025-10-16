@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-class WorkersController extends ChangeNotifier{
+class WorkersController extends ChangeNotifier {
   final CollectionReference workersRef = FirebaseFirestore.instance.collection(
     'workers',
   );
@@ -32,8 +32,27 @@ class WorkersController extends ChangeNotifier{
     return 'Temps plein';
   }
 
+  Map<String, String> workersMap = {};
+
+  /// Chargement des travailleurs
+  Future<void> loadWorkers() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('workers')
+        .where('active', isEqualTo: true)
+        .get();
+
+    workersMap = {
+      for (var doc in snapshot.docs)
+        doc.id: '${doc['firstName']} ${doc['name']}',
+    };
+  }
+
   /// Modifier un travailleur
-  Future<void> updateWorker(BuildContext context,String id,Map<String, dynamic> data,) async {
+  Future<void> updateWorker(
+    BuildContext context,
+    String id,
+    Map<String, dynamic> data,
+  ) async {
     final TextEditingController firstNameController = TextEditingController(
       text: data['firstName'] ?? '',
     );
@@ -46,7 +65,7 @@ class WorkersController extends ChangeNotifier{
     bool isHalfTime = data['isHalfTime'] ?? false;
     bool isFullTime = !isPartTime && !isTherapeutic && !isHalfTime;
     bool isAbcent = data['isAbcent'] ?? false;
-    
+
     // ➜ Si un statut est sélectionné, décoche les autres
     if (isPartTime) {
       isTherapeutic = false;
@@ -202,7 +221,8 @@ class WorkersController extends ChangeNotifier{
                               );
                               return;
                             }
-                            bool isFullTime = !isPartTime && !isTherapeutic && !isHalfTime;
+                            bool isFullTime =
+                                !isPartTime && !isTherapeutic && !isHalfTime;
                             await workersRef.doc(id).update({
                               'firstName':
                                   firstName[0].toUpperCase() +
@@ -210,7 +230,10 @@ class WorkersController extends ChangeNotifier{
                               'name': name.toUpperCase(),
                               'isPartTime': isPartTime,
                               'isTherapeutic': isTherapeutic,
-                              'isFullTime': (!isPartTime && !isTherapeutic && !isHalfTime),
+                              'isFullTime':
+                                  (!isPartTime &&
+                                  !isTherapeutic &&
+                                  !isHalfTime),
                               'isHalfTime': isHalfTime,
                               'isAbcent': isAbcent,
                               'updatedAt': FieldValue.serverTimestamp(),
@@ -238,9 +261,9 @@ class WorkersController extends ChangeNotifier{
       },
     );
   }
-  
+
   /// Supprimer un travailleur
-  Future<void> deleteWorker(BuildContext context,  id) async {
+  Future<void> deleteWorker(BuildContext context, id) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -276,7 +299,10 @@ class WorkersController extends ChangeNotifier{
   }
 
   /// ➕ Ajouter un travailleur
-  Future<void> _addWorker(BuildContext context, BuildContext dialogContext) async {
+  Future<void> _addWorker(
+    BuildContext context,
+    BuildContext dialogContext,
+  ) async {
     final firstName = firstNameController.text.trim();
     final name = nameController.text.trim();
 
@@ -308,8 +334,9 @@ class WorkersController extends ChangeNotifier{
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Erreur : ${e.toString()}')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erreur : ${e.toString()}')));
     }
   }
 
@@ -501,22 +528,26 @@ class WorkersController extends ChangeNotifier{
 
     // Compléter les jours manquants
     for (var day in days) {
-      workSchedule.putIfAbsent(day, () => {
-            'endTime': null,
-            'worksMorning': true,
-            'worksAfternoon': true,
-          });
+      workSchedule.putIfAbsent(
+        day,
+        () => {'endTime': null, 'worksMorning': true, 'worksAfternoon': true},
+      );
     }
 
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 24,
+          ),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final maxHeight = MediaQuery.of(dialogContext).size.height * 0.85;
-              final maxWidth = constraints.maxWidth < 600 ? constraints.maxWidth : 600.0;
+              final maxWidth = constraints.maxWidth < 600
+                  ? constraints.maxWidth
+                  : 600.0;
 
               return ConstrainedBox(
                 constraints: BoxConstraints(
@@ -533,7 +564,9 @@ class WorkersController extends ChangeNotifier{
                       );
                       if (picked != null) {
                         setState(() {
-                          workSchedule[day]!['endTime'] = picked.format(dialogContext);
+                          workSchedule[day]!['endTime'] = picked.format(
+                            dialogContext,
+                          );
                         });
                       }
                     }
@@ -549,11 +582,14 @@ class WorkersController extends ChangeNotifier{
                                 child: Text(
                                   'Configurer les horaires aménagés',
                                   style: TextStyle(
-                                      fontSize: 18, fontWeight: FontWeight.bold),
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                               IconButton(
-                                onPressed: () => Navigator.of(dialogContext).pop(),
+                                onPressed: () =>
+                                    Navigator.of(dialogContext).pop(),
                                 icon: const Icon(Icons.close),
                               ),
                             ],
@@ -567,17 +603,22 @@ class WorkersController extends ChangeNotifier{
                                   final info = workSchedule[day]!;
 
                                   return Card(
-                                    margin: const EdgeInsets.symmetric(vertical: 6),
+                                    margin: const EdgeInsets.symmetric(
+                                      vertical: 6,
+                                    ),
                                     child: Padding(
                                       padding: const EdgeInsets.all(10.0),
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            day[0].toUpperCase() + day.substring(1),
+                                            day[0].toUpperCase() +
+                                                day.substring(1),
                                             style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
                                           ),
                                           const SizedBox(height: 6),
                                           Row(
@@ -589,31 +630,45 @@ class WorkersController extends ChangeNotifier{
                                               Expanded(
                                                 flex: 3,
                                                 child: Row(
-                                                  mainAxisAlignment: MainAxisAlignment.end,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.end,
                                                   children: [
                                                     Flexible(
                                                       child: Text(
-                                                        info['endTime'] ?? 'Non défini',
-                                                        overflow: TextOverflow.ellipsis,
-                                                        style: const TextStyle(color: Colors.grey),
+                                                        info['endTime'] ??
+                                                            'Non défini',
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: const TextStyle(
+                                                          color: Colors.grey,
+                                                        ),
                                                       ),
                                                     ),
                                                     IconButton(
-                                                      icon: const Icon(Icons.access_time),
-                                                      onPressed: () => pickTime(day),
-                                                      constraints: const BoxConstraints(),
+                                                      icon: const Icon(
+                                                        Icons.access_time,
+                                                      ),
+                                                      onPressed: () =>
+                                                          pickTime(day),
+                                                      constraints:
+                                                          const BoxConstraints(),
                                                       padding: EdgeInsets.zero,
                                                     ),
                                                     if (info['endTime'] != null)
                                                       IconButton(
-                                                        icon: const Icon(Icons.clear),
+                                                        icon: const Icon(
+                                                          Icons.clear,
+                                                        ),
                                                         onPressed: () {
                                                           setState(() {
-                                                            info['endTime'] = null;
+                                                            info['endTime'] =
+                                                                null;
                                                           });
                                                         },
-                                                        constraints: const BoxConstraints(),
-                                                        padding: EdgeInsets.zero,
+                                                        constraints:
+                                                            const BoxConstraints(),
+                                                        padding:
+                                                            EdgeInsets.zero,
                                                       ),
                                                   ],
                                                 ),
@@ -627,7 +682,9 @@ class WorkersController extends ChangeNotifier{
                                             children: [
                                               const Text("Travaille le matin"),
                                               Switch(
-                                                value: info['worksMorning'] ?? true,
+                                                value:
+                                                    info['worksMorning'] ??
+                                                    true,
                                                 onChanged: (val) {
                                                   setState(() {
                                                     info['worksMorning'] = val;
@@ -640,12 +697,17 @@ class WorkersController extends ChangeNotifier{
                                             mainAxisAlignment:
                                                 MainAxisAlignment.spaceBetween,
                                             children: [
-                                              const Text("Travaille l’après-midi"),
+                                              const Text(
+                                                "Travaille l’après-midi",
+                                              ),
                                               Switch(
-                                                value: info['worksAfternoon'] ?? true,
+                                                value:
+                                                    info['worksAfternoon'] ??
+                                                    true,
                                                 onChanged: (val) {
                                                   setState(() {
-                                                    info['worksAfternoon'] = val;
+                                                    info['worksAfternoon'] =
+                                                        val;
                                                   });
                                                 },
                                               ),
@@ -664,7 +726,8 @@ class WorkersController extends ChangeNotifier{
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
                               TextButton(
-                                onPressed: () => Navigator.of(dialogContext).pop(),
+                                onPressed: () =>
+                                    Navigator.of(dialogContext).pop(),
                                 child: const Text('Annuler'),
                               ),
                               const SizedBox(width: 8),
@@ -672,26 +735,30 @@ class WorkersController extends ChangeNotifier{
                                 onPressed: () async {
                                   try {
                                     await FirebaseFirestore.instance
-                                      .collection('workers')
-                                      .doc(workerId)
-                                      .update({'workSchedule': workSchedule});
+                                        .collection('workers')
+                                        .doc(workerId)
+                                        .update({'workSchedule': workSchedule});
 
                                     if (context.mounted) {
                                       Navigator.of(dialogContext).pop();
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         const SnackBar(
-                                          content:Text(
+                                          content: Text(
                                             'Horaires aménagés enregistrés ✅',
-                                          )
+                                          ),
                                         ),
                                       );
                                     }
                                   } catch (e) {
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                          'Erreur lors de l’enregistrement : ${e.toString()}',
+                                            'Erreur lors de l’enregistrement : ${e.toString()}',
                                           ),
                                         ),
                                       );
@@ -717,7 +784,10 @@ class WorkersController extends ChangeNotifier{
 
   /// Supprime un jour spécifique du workSchedule avec confirmation
   void removeWorkSchedule(
-      BuildContext context, String workerId, String day) async {
+    BuildContext context,
+    String workerId,
+    String day,
+  ) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -739,7 +809,9 @@ class WorkersController extends ChangeNotifier{
 
     if (confirm != true) return;
 
-    final docRef = FirebaseFirestore.instance.collection('workers').doc(workerId);
+    final docRef = FirebaseFirestore.instance
+        .collection('workers')
+        .doc(workerId);
     final snap = await docRef.get();
     if (!snap.exists) return;
 
@@ -750,9 +822,9 @@ class WorkersController extends ChangeNotifier{
     await docRef.update({'workSchedule': schedule});
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Horaire du $day supprimé ✅')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Horaire du $day supprimé ✅')));
     }
   }
 }

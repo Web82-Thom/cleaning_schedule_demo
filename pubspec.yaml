@@ -47,6 +47,7 @@ dependencies:
 
   flutter_localizations:
     sdk: flutter
+  table_calendar: ^3.2.0
   
 
 dev_dependencies:

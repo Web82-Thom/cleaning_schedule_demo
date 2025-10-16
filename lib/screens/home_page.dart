@@ -3,7 +3,7 @@ import 'package:cleaning_schedule/controllers/stub_controller.dart';
 import 'package:cleaning_schedule/screens/stubPages/consommation_page.dart';
 import 'package:cleaning_schedule/screens/stubPages/divers_page.dart';
 import 'package:cleaning_schedule/screens/stubPages/planning_page.dart';
-import 'package:cleaning_schedule/screens/stubPages/rdv_page.dart';
+import 'package:cleaning_schedule/screens/stubPages/rdv_calendar_page.dart';
 import 'package:cleaning_schedule/widgets/build_tab_item_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,7 +22,7 @@ class _HomePageState extends State<HomePage> {
 
   final List<Widget> _pages = const [
     PlanningPage(),
-    RdvPage(),
+    RdvCalendarPage(),
     DiversPage(),
     ConsommationPage(),
   ];
