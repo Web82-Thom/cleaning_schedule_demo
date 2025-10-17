@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:cleaning_schedule/screens/list_pdf_page.dart';
+import 'package:cleaning_schedule/screens/planning/event_from_page.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:cleaning_schedule/screens/planning/edit_event_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -83,8 +83,9 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
 
     // Jours de la semaine
     final days = _weekDays;
-    final dayLabels =
-        days.map((d) => DateFormat('EEEE', 'fr_FR').format(d)).toList();
+    final dayLabels = days
+        .map((d) => DateFormat('EEEE', 'fr_FR').format(d))
+        .toList();
 
     // Grouper les événements par jour + créneau
     Map<String, List<Map<String, dynamic>>> grouped = {};
@@ -159,7 +160,9 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
               style: pw.TextStyle(
                 fontSize: 20,
                 fontWeight: pw.FontWeight.bold,
-                color: slot == 'morning' ? PdfColors.orange800 : PdfColors.teal800,
+                color: slot == 'morning'
+                    ? PdfColors.orange800
+                    : PdfColors.teal800,
               ),
             ),
             pw.SizedBox(height: 10),
@@ -201,8 +204,7 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                 // Ligne du contenu
                 pw.TableRow(
                   children: days.map((day) {
-                    final key =
-                        '${DateFormat('yyyy-MM-dd').format(day)}_$slot';
+                    final key = '${DateFormat('yyyy-MM-dd').format(day)}_$slot';
                     final eventsForDay = grouped[key] ?? [];
                     return pw.Padding(
                       padding: const pw.EdgeInsets.all(5),
@@ -223,18 +225,99 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
 
     // Sauvegarde du fichier
     final dir = await getApplicationDocumentsDirectory();
-    final fileName =
-        'planning_week_$_weekNumber.pdf';
+    final fileName = 'planning_week_$_weekNumber.pdf';
     final file = File('${dir.path}/$fileName');
     await file.writeAsBytes(await pdf.save());
 
     await OpenFilex.open(file.path);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('PDF généré : $fileName ✅')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('PDF généré : $fileName ✅')));
     }
+  }
+
+  late DocumentReference eventRef;
+  Future<List<Map<String, dynamic>>> _loadEventsNoWeekly() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('eventsNoWeekly')
+        .get();
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'id': doc.id,
+        'day': (data['day'] as Timestamp).toDate(),
+        'timeSlot': data['timeSlot'] ?? 'morning',
+        'place': data['place'] ?? '',
+        'subPlace': data['subPlace'] ?? '',
+        'task': data['task'] ?? '',
+        'workerIds': List<String>.from(data['workerIds'] ?? []),
+        'isNoWeekly': true, // pour différencier
+      };
+    }).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadEvents() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('events')
+        .get();
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'id': doc.id,
+        'day': (data['day'] as Timestamp).toDate(),
+        'timeSlot': data['timeSlot'] ?? 'morning',
+        'place': data['place'] ?? '',
+        'subPlace': data['subPlace'] ?? '',
+        'task': data['task'] ?? '',
+        'workerIds': List<String>.from(data['workerIds'] ?? []),
+        'isNoWeekly': true, // pour différencier
+      };
+    }).toList();
+  }
+
+  //ALL EVENTS
+  Future<List<Map<String, dynamic>>> _loadAllEvents() async {
+    final mainSnapshot = await FirebaseFirestore.instance
+        .collection('events')
+        .get();
+
+    final events = mainSnapshot.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'id': doc.id,
+        'day': (data['day'] as Timestamp).toDate(),
+        'timeSlot': data['timeSlot'] ?? 'morning',
+        'place': data['place'] ?? '',
+        'subPlace': data['subPlace'] ?? '',
+        'task': data['task'] ?? '',
+        'workerIds': List<String>.from(data['workerIds'] ?? []),
+        'isNoWeekly': false,
+      };
+    }).toList();
+
+    final noWeeklySnapshot = await FirebaseFirestore.instance
+        .collection('eventsNoWeekly')
+        .get();
+
+    final noWeeklyEvents = noWeeklySnapshot.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'id': doc.id,
+        'day': (data['day'] as Timestamp).toDate(),
+        'timeSlot': data['timeSlot'] ?? 'morning',
+        'place': data['place'] ?? '',
+        'subPlace': data['subPlace'] ?? '',
+        'task': data['task'] ?? '',
+        'workerIds': List<String>.from(data['workerIds'] ?? []),
+        'isNoWeekly': true,
+      };
+    }).toList();
+
+    return [...events, ...noWeeklyEvents];
   }
 
   @override
@@ -289,6 +372,7 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
             'workerIds': List<String>.from(data['workerIds'] ?? []),
           };
         }).toList();
+
         return Scaffold(
           appBar: AppBar(
             title: Row(
@@ -380,62 +464,23 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
             ],
           ),
 
-          body: StreamBuilder<QuerySnapshot>(
-            // 🔹 Nouvelle requête : filtre par date, plus par numéro de semaine
-            stream: FirebaseFirestore.instance
-                .collection('events')
-                .where(
-                  'day',
-                  isGreaterThanOrEqualTo: Timestamp.fromDate(
-                    DateTime(
-                      _startOfWeek.year,
-                      _startOfWeek.month,
-                      _startOfWeek.day,
-                      0,
-                      0,
-                      0,
-                    ),
-                  ),
-                )
-                .where(
-                  'day',
-                  isLessThanOrEqualTo: Timestamp.fromDate(
-                    DateTime(
-                      _endOfWeek.year,
-                      _endOfWeek.month,
-                      _endOfWeek.day,
-                      23,
-                      59,
-                      59,
-                    ),
-                  ),
-                )
-                .snapshots(),
+          body: FutureBuilder<List<Map<String, dynamic>>>(
+            future: _loadAllEvents(),
             builder: (context, snapshot) {
-              if (!snapshot.hasData) {
+              if (!snapshot.hasData)
                 return const Center(child: CircularProgressIndicator());
-              }
 
-              final events = snapshot.data!.docs.map((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                return {
-                  'id': doc.id,
-                  'day': (data['day'] as Timestamp).toDate(),
-                  'timeSlot': data['timeSlot'],
-                  'place': data['place'],
-                  'subPlace': data['subPlace'],
-                  'task': data['task'],
-                  'workerIds': List<String>.from(data['workerIds'] ?? []),
-                };
-              }).toList();
+              final allEvents = snapshot.data!;
 
               // 🔹 Grouper les events par jour + créneau
               Map<String, List<Map<String, dynamic>>> grouped = {};
-              for (var e in events) {
+              for (var e in allEvents) {
                 final key =
                     '${DateFormat('yyyy-MM-dd').format(e['day'])}_${e['timeSlot']}';
                 grouped.putIfAbsent(key, () => []).add(e);
               }
+
+              final days = _weekDays;
 
               return InteractiveViewer(
                 panEnabled: true,
@@ -448,7 +493,7 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 🔹 En-tête des jours
+                      // En-tête des jours
                       Row(
                         children: [
                           const SizedBox(width: 40),
@@ -471,7 +516,7 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                         ],
                       ),
 
-                      // 🔹 Matin / Après-midi
+                      // Matin / Après-midi
                       for (var period in ['morning', 'afternoon'])
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -491,9 +536,6 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                                       fontWeight: FontWeight.bold,
                                       fontSize: 14,
                                     ),
-                                    textAlign: TextAlign.center,
-                                    softWrap: false,
-                                    overflow: TextOverflow.visible,
                                   ),
                                 ),
                               ),
@@ -515,110 +557,155 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: cellEvents.isEmpty
-                                ? const Center(
-                                    child: Text(
-                                      '—',
-                                      style: TextStyle(color: Colors.black54),
-                                    ),
-                                  )
-                                : Stack(
-                                    children: [
-                                      ListView(
-                                        children: cellEvents.map((e) {
-                                          final sub = (e['subPlace'] != null && e['subPlace'] is List && (e['subPlace'] as List).isNotEmpty)
-                                            ? ' ${(e['subPlace'] as List).join(", ")}'
-                                            : '';
-                                          final workerNames = e['workerIds']
-                                              .map<String>((id) => _workersMap[id] ?? 'Inconnu')
-                                              .join(', ');
-
-                                          final place = e['place'] ?? 'Inconnu';
-                                          final colorIndex = (place.hashCode % Colors.primaries.length);
-                                          final baseColor = Colors.primaries[colorIndex].shade200;
-
-                                          return InkWell(
-                                            onTap: () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (_) => EditEventPage(eventId: e['id']),
-                                                ),
-                                              );
-                                            },
-                                            child: Container(
-                                              margin: const EdgeInsets.only(bottom: 6),
-                                              padding: const EdgeInsets.all(6),
-                                              decoration: BoxDecoration(
-                                                color: baseColor,
-                                                borderRadius: BorderRadius.circular(6),
-                                                border: Border.all(color: Colors.black12),
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    '• $place',
-                                                    style: const TextStyle(
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                  
-                                                  if (sub.isNotEmpty) 
-   Text(
-    ' - $sub',
-    style: const TextStyle(
-      fontSize: 12,
-      color: Colors.black87
-    ),
-  )
- else 
-   const SizedBox.shrink(), // ne rien afficher si sub est vide
-
-                                                  if (workerNames.isNotEmpty)
-                                                  Text(
-                                                      'Travailleurs:',
-                                                      style: const TextStyle(
-                                                        fontSize: 12,
-                                                        fontWeight: FontWeight.bold,
-                                                        fontStyle: FontStyle.italic,
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      '$workerNames',
-                                                      style: const TextStyle(
-                                                        fontSize: 12,
-                                                        fontStyle: FontStyle.italic,
-                                                      ),
-                                                    ),
-                                                  Text(
-                                                    e['task'] == '' ? '' : 'Tâche: ${e['task']}',
-                                                    style: const TextStyle(fontSize: 12),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          );
-                                        }).toList(),
-                                      ),
-
-                                      // 🔽 Petite flèche d'indication
-                                      if (cellEvents.length > 3)
-                                        const Positioned(
-                                          bottom: 2,
-                                          left: 0,
-                                          right: 0,
-                                          child: Center(
-                                            child: Icon(
-                                              Icons.keyboard_arrow_down,
-                                              size: 25,
-                                              color: Colors.black,
-                                            ),
+                                    ? const Center(
+                                        child: Text(
+                                          '—',
+                                          style: TextStyle(
+                                            color: Colors.black54,
                                           ),
                                         ),
-                                    ],
-                                  ),
+                                      )
+                                    : Stack(
+                                        children: [
+                                          ListView(
+                                            children: cellEvents.map((e) {
+                                              final sub =
+                                                  (e['subPlace'] != null &&
+                                                      e['subPlace'] is List &&
+                                                      (e['subPlace'] as List)
+                                                          .isNotEmpty)
+                                                  ? ' ${(e['subPlace'] as List).join(", ")}'
+                                                  : '';
+                                              final workerNames = e['workerIds']
+                                                  .map<String>(
+                                                    (id) =>
+                                                        _workersMap[id] ??
+                                                        'Inconnu',
+                                                  )
+                                                  .join(', ');
 
+                                              final place =
+                                                  e['place'] ?? 'Inconnu';
+
+                                              // 🔹 couleur spéciale si c'est un eventNoWeekly
+                                              final baseColor =
+                                                  e['isNoWeekly'] == true
+                                                  ? Colors.purple.shade100
+                                                  : Colors.primaries[ place.hashCode % Colors.primaries.length].shade200;
+
+                                              return InkWell(
+                                                onLongPress: () {
+                                                  //
+                                                },
+                                                onTap: () {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (_) =>
+                                                        EventFormPage(
+                                                          eventId: e['id'],
+                                                        ),
+                                                    ),
+                                                  );
+                                                },
+                                                child: Container(
+                                                  margin: const EdgeInsets.only(
+                                                    bottom: 6,
+                                                  ),
+                                                  padding: const EdgeInsets.all(
+                                                    6,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: baseColor,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: Colors.black12,
+                                                    ),
+                                                  ),
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        '• $place',
+                                                        style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+
+                                                      if (sub.isNotEmpty)
+                                                        Text(
+                                                          ' - $sub',
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 12,
+                                                                color: Colors
+                                                                    .black87,
+                                                              ),
+                                                        )
+                                                      else
+                                                        const SizedBox.shrink(), // ne rien afficher si sub est vide
+
+                                                      if (workerNames
+                                                          .isNotEmpty)
+                                                        Text(
+                                                          'Travailleurs:',
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 12,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                fontStyle:
+                                                                    FontStyle
+                                                                        .italic,
+                                                              ),
+                                                        ),
+                                                      Text(
+                                                        '$workerNames',
+                                                        style: const TextStyle(
+                                                          fontSize: 12,
+                                                          fontStyle:
+                                                              FontStyle.italic,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        e['task'] == ''
+                                                            ? ''
+                                                            : 'Tâche: ${e['task']}',
+                                                        style: const TextStyle(
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              );
+                                            }).toList(),
+                                          ),
+
+                                          // 🔽 Petite flèche d'indication
+                                          if (cellEvents.length > 3)
+                                            const Positioned(
+                                              bottom: 2,
+                                              left: 0,
+                                              right: 0,
+                                              child: Center(
+                                                child: Icon(
+                                                  Icons.keyboard_arrow_down,
+                                                  size: 25,
+                                                  color: Colors.black,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
                               );
                             }),
                           ],

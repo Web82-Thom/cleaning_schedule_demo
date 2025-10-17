@@ -34,13 +34,15 @@ class WorkersController extends ChangeNotifier {
   Map<String, String> workersMap = {};
 
   /// Chargement des travailleurs
-  Future<void> loadWorkers() async {
-    final snapshot = await workersRef.where('active', isEqualTo: true).get();
-    workersMap = {
-      for (var doc in snapshot.docs)
-        doc.id: '${doc['firstName']} ${doc['name']}',
-    };
-  }
+  Future<Map<String, String>> loadWorkers() async {
+  final snapshot = await workersRef.where('active', isEqualTo: true).get();
+  workersMap = {
+    for (var doc in snapshot.docs)
+      doc.id: '${doc['firstName']} ${doc['name']}',
+  };
+  return workersMap;
+}
+
 
   /// Modifier un travailleur
   Future<void> updateWorker(
