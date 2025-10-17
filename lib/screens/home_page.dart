@@ -9,11 +9,16 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final FirebaseAuth auth;
+
+   HomePage({Key? key, FirebaseAuth? auth})
+      : auth = auth ?? FirebaseAuth.instance,
+        super(key: key);
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
+
 
 class _HomePageState extends State<HomePage> {
   AuthController authController = AuthController();

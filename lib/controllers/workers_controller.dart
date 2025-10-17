@@ -12,7 +12,6 @@ class WorkersController extends ChangeNotifier {
   bool _isPartTime = false;
   bool _isTherapeutic = false;
   bool _isHalfTime = false;
-  bool _isFullTime = false;
   bool _isAbcent = false;
 
   /// 🟢 Couleur du statut selon le type
@@ -36,11 +35,7 @@ class WorkersController extends ChangeNotifier {
 
   /// Chargement des travailleurs
   Future<void> loadWorkers() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('workers')
-        .where('active', isEqualTo: true)
-        .get();
-
+    final snapshot = await workersRef.where('active', isEqualTo: true).get();
     workersMap = {
       for (var doc in snapshot.docs)
         doc.id: '${doc['firstName']} ${doc['name']}',
@@ -63,7 +58,6 @@ class WorkersController extends ChangeNotifier {
     bool isPartTime = data['isPartTime'] ?? false;
     bool isTherapeutic = data['isTherapeutic'] ?? false;
     bool isHalfTime = data['isHalfTime'] ?? false;
-    bool isFullTime = !isPartTime && !isTherapeutic && !isHalfTime;
     bool isAbcent = data['isAbcent'] ?? false;
 
     // ➜ Si un statut est sélectionné, décoche les autres
@@ -76,9 +70,6 @@ class WorkersController extends ChangeNotifier {
     } else if (isHalfTime) {
       isPartTime = false;
       isTherapeutic = false;
-    } else {
-      // ➜ Si aucun n'est coché, c’est du temps plein
-      isFullTime = true;
     }
 
     await showDialog(
@@ -109,148 +100,40 @@ class WorkersController extends ChangeNotifier {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    _buildTextField(
                       controller: firstNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Prénom',
-                        prefixIcon: Icon(Icons.person_outline),
-                        border: OutlineInputBorder(),
-                      ),
+                      label: 'Prénom',
+                      icon: Icons.person_outline,
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    _buildTextField(
                       controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nom',
-                        prefixIcon: Icon(Icons.person),
-                        border: OutlineInputBorder(),
-                      ),
+                      label: 'Nom',
+                      icon: Icons.person,
                     ),
                     const SizedBox(height: 16),
-                    Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        children: [
-                          CheckboxListTile(
-                            title: const Text("Temps partiel"),
-                            value: isPartTime,
-                            onChanged: (v) {
-                              setDialogState(() {
-                                if (v == true) {
-                                  isPartTime = true;
-                                  isTherapeutic = false;
-                                  isHalfTime = false;
-                                  isFullTime = false;
-                                } else {
-                                  isPartTime = false;
-                                  isFullTime = true;
-                                }
-                              });
-                            },
-                          ),
-                          CheckboxListTile(
-                            title: const Text("Mi-temps thérapeutique"),
-                            value: isTherapeutic,
-                            onChanged: (v) {
-                              setDialogState(() {
-                                if (v == true) {
-                                  isTherapeutic = true;
-                                  isPartTime = false;
-                                  isHalfTime = false;
-                                  isFullTime = false;
-                                } else {
-                                  isTherapeutic = false;
-                                  isFullTime = true;
-                                }
-                              });
-                            },
-                          ),
-                          CheckboxListTile(
-                            title: const Text("Mi-temps"),
-                            value: isHalfTime,
-                            onChanged: (v) {
-                              setDialogState(() {
-                                if (v == true) {
-                                  isHalfTime = true;
-                                  isPartTime = false;
-                                  isTherapeutic = false;
-                                  isFullTime = false;
-                                } else {
-                                  isHalfTime = false;
-                                  isFullTime = true;
-                                }
-                              });
-                            },
-                          ),
-                          CheckboxListTile(
-                            title: const Text("Absent"),
-                            value: isAbcent,
-                            onChanged: (v) {
-                              setDialogState(() {
-                                isAbcent = v ?? false;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
+                    _buildStatusCheckboxes(
+                      setDialogState,
+                      isPartTime,
+                      isTherapeutic,
+                      isHalfTime,
+                      isAbcent,
+                      (v) => isPartTime = v,
+                      (v) => isTherapeutic = v,
+                      (v) => isHalfTime = v,
+                      (v) => isAbcent = v,
                     ),
-
                     const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.of(dialogContext).pop(),
-                          child: const Text('Annuler'),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: () async {
-                            final firstName = firstNameController.text.trim();
-                            final name = nameController.text.trim();
-
-                            if (firstName.isEmpty || name.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Veuillez remplir tous les champs',
-                                  ),
-                                ),
-                              );
-                              return;
-                            }
-                            bool isFullTime =
-                                !isPartTime && !isTherapeutic && !isHalfTime;
-                            await workersRef.doc(id).update({
-                              'firstName':
-                                  firstName[0].toUpperCase() +
-                                  firstName.substring(1),
-                              'name': name.toUpperCase(),
-                              'isPartTime': isPartTime,
-                              'isTherapeutic': isTherapeutic,
-                              'isFullTime':
-                                  (!isPartTime &&
-                                  !isTherapeutic &&
-                                  !isHalfTime),
-                              'isHalfTime': isHalfTime,
-                              'isAbcent': isAbcent,
-                              'updatedAt': FieldValue.serverTimestamp(),
-                            });
-
-                            if (context.mounted) {
-                              Navigator.of(dialogContext).pop();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Travailleur mis à jour ✅'),
-                                ),
-                              );
-                            }
-                          },
-                          child: const Text('Mettre à jour'),
-                        ),
-                      ],
+                    _buildUpdateActions(
+                      context,
+                      dialogContext,
+                      firstNameController,
+                      nameController,
+                      id,
+                      isPartTime,
+                      isTherapeutic,
+                      isHalfTime,
+                      isAbcent,
                     ),
                   ],
                 ),
@@ -266,47 +149,45 @@ class WorkersController extends ChangeNotifier {
   Future<void> deleteWorker(BuildContext context, id) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Confirmation'),
-          content: const Text(
-            'Êtes-vous sûr de vouloir supprimer ce travailleur ?',
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirmation'),
+        content: const Text(
+          'Êtes-vous sûr de vouloir supprimer ce travailleur ?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Non'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Non'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Oui'),
-            ),
-          ],
-        );
-      },
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Oui'),
+          ),
+        ],
+      ),
     );
 
-    if (confirm == true) {
-      await workersRef.doc(id).delete();
-      Navigator.pop(context, true);
+    if (confirm != true) return;
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Travailleur supprimé ❌')));
-      }
+    await workersRef.doc(id).delete();
+    Navigator.pop(context, true);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Travailleur supprimé ❌')));
     }
   }
 
   /// ➕ Ajouter un travailleur
-  Future<void> _addWorker(
+  Future<void> _addWorkerFromButton(
     BuildContext context,
     BuildContext dialogContext,
   ) async {
     final firstName = firstNameController.text.trim();
     final name = nameController.text.trim();
 
-    if (name.isEmpty || firstName.isEmpty) {
+    if (firstName.isEmpty || name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez remplir tous les champs')),
       );
@@ -314,6 +195,9 @@ class WorkersController extends ChangeNotifier {
     }
 
     try {
+      // Calcul dynamique de isFullTime
+      final _isFullTime = !_isPartTime && !_isTherapeutic && !_isHalfTime;
+
       await workersRef.add({
         'firstName': firstName[0].toUpperCase() + firstName.substring(1),
         'name': name.toUpperCase(),
@@ -322,13 +206,13 @@ class WorkersController extends ChangeNotifier {
         'isPartTime': _isPartTime,
         'isTherapeutic': _isTherapeutic,
         'isHalfTime': _isHalfTime,
-        'isFullTime': (!_isPartTime && !_isTherapeutic && !_isHalfTime),
+        'isFullTime': _isFullTime,
         'isAbcent': _isAbcent,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       if (context.mounted) {
-        Navigator.of(dialogContext).pop(); // 🔹 on ferme uniquement le Dialog
+        Navigator.of(dialogContext).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Travailleur ajouté avec succès ✅')),
         );
@@ -342,10 +226,10 @@ class WorkersController extends ChangeNotifier {
 
   /// 🪟 Boîte de dialogue d’ajout
   void showAddWorkerDialog(BuildContext context) {
+    // Réinitialiser le formulaire
     _isPartTime = false;
     _isTherapeutic = false;
     _isHalfTime = false;
-    _isFullTime = false;
     _isAbcent = false;
     firstNameController.clear();
     nameController.clear();
@@ -355,8 +239,7 @@ class WorkersController extends ChangeNotifier {
       builder: (BuildContext dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            bool _isValid() => nameController.text.trim().isNotEmpty;
-
+            bool isValid() => nameController.text.trim().isNotEmpty;
             return Dialog(
               insetPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
@@ -386,27 +269,19 @@ class WorkersController extends ChangeNotifier {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          // Prénom
-                          TextField(
+                          _buildTextField(
                             controller: firstNameController,
-                            decoration: const InputDecoration(
-                              labelText: 'Prénom',
-                              prefixIcon: Icon(Icons.person_outline),
-                              border: OutlineInputBorder(),
-                            ),
+                            label: 'Prénom',
+                            icon: Icons.person_outline,
                           ),
                           const SizedBox(height: 12),
-                          // Nom
-                          TextField(
+                          _buildTextField(
                             controller: nameController,
-                            decoration: const InputDecoration(
-                              labelText: 'Nom',
-                              prefixIcon: Icon(Icons.person),
-                              border: OutlineInputBorder(),
-                            ),
+                            label: 'Nom',
+                            icon: Icons.person,
                           ),
                           const SizedBox(height: 16),
-                          // Checkboxes verticales
+                          // Checkboxes avec gestion dynamique de isFullTime
                           Card(
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -419,9 +294,10 @@ class WorkersController extends ChangeNotifier {
                                   onChanged: (v) {
                                     setDialogState(() {
                                       _isPartTime = v ?? false;
-                                      if (_isPartTime) _isTherapeutic = false;
-                                      if (_isPartTime) _isFullTime = false;
-                                      if (_isPartTime) _isHalfTime = false;
+                                      if (_isPartTime) {
+                                        _isTherapeutic = false;
+                                        _isHalfTime = false;
+                                      }
                                     });
                                   },
                                 ),
@@ -431,9 +307,10 @@ class WorkersController extends ChangeNotifier {
                                   onChanged: (v) {
                                     setDialogState(() {
                                       _isTherapeutic = v ?? false;
-                                      if (_isTherapeutic) _isPartTime = false;
-                                      if (_isTherapeutic) _isFullTime = false;
-                                      if (_isTherapeutic) _isHalfTime = false;
+                                      if (_isTherapeutic) {
+                                        _isPartTime = false;
+                                        _isHalfTime = false;
+                                      }
                                     });
                                   },
                                 ),
@@ -443,9 +320,10 @@ class WorkersController extends ChangeNotifier {
                                   onChanged: (v) {
                                     setDialogState(() {
                                       _isHalfTime = v ?? false;
-                                      if (_isHalfTime) _isPartTime = false;
-                                      if (_isHalfTime) _isFullTime = false;
-                                      if (_isHalfTime) _isTherapeutic = false;
+                                      if (_isHalfTime) {
+                                        _isPartTime = false;
+                                        _isTherapeutic = false;
+                                      }
                                     });
                                   },
                                 ),
@@ -473,8 +351,11 @@ class WorkersController extends ChangeNotifier {
                               ),
                               const SizedBox(width: 8),
                               ElevatedButton(
-                                onPressed: _isValid()
-                                    ? () => _addWorker(context, dialogContext)
+                                onPressed: isValid()
+                                    ? () => _addWorkerFromButton(
+                                        context,
+                                        dialogContext,
+                                      )
                                     : null,
                                 child: const Text('Enregistrer'),
                               ),
@@ -503,10 +384,8 @@ class WorkersController extends ChangeNotifier {
 
     Map<String, Map<String, dynamic>> workSchedule = {};
 
-    // Charger les horaires existants s’ils existent et tolérer différents formats
     if (data['workSchedule'] != null) {
       final rawSchedule = data['workSchedule'];
-
       if (rawSchedule is Map) {
         rawSchedule.forEach((key, value) {
           if (value is String) {
@@ -526,7 +405,6 @@ class WorkersController extends ChangeNotifier {
       }
     }
 
-    // Compléter les jours manquants
     for (var day in days) {
       workSchedule.putIfAbsent(
         day,
@@ -594,7 +472,6 @@ class WorkersController extends ChangeNotifier {
                               ),
                             ],
                           ),
-
                           const SizedBox(height: 8),
                           Expanded(
                             child: SingleChildScrollView(
@@ -734,10 +611,9 @@ class WorkersController extends ChangeNotifier {
                               ElevatedButton(
                                 onPressed: () async {
                                   try {
-                                    await FirebaseFirestore.instance
-                                        .collection('workers')
-                                        .doc(workerId)
-                                        .update({'workSchedule': workSchedule});
+                                    await workersRef.doc(workerId).update({
+                                      'workSchedule': workSchedule,
+                                    });
 
                                     if (context.mounted) {
                                       Navigator.of(dialogContext).pop();
@@ -809,9 +685,7 @@ class WorkersController extends ChangeNotifier {
 
     if (confirm != true) return;
 
-    final docRef = FirebaseFirestore.instance
-        .collection('workers')
-        .doc(workerId);
+    final docRef = workersRef.doc(workerId);
     final snap = await docRef.get();
     if (!snap.exists) return;
 
@@ -826,5 +700,157 @@ class WorkersController extends ChangeNotifier {
         context,
       ).showSnackBar(SnackBar(content: Text('Horaire du $day supprimé ✅')));
     }
+  }
+
+  /// 🛠 Helpers
+  // void _resetForm() {
+  //   _isPartTime = false;
+  //   _isTherapeutic = false;
+  //   _isHalfTime = false;
+  //   _isAbcent = false;
+  //   firstNameController.clear();
+  //   nameController.clear();
+  // }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+  }) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: const OutlineInputBorder(),
+      ),
+    );
+  }
+
+  Widget _buildStatusCheckboxes(
+    void Function(void Function()) setState,
+    bool isPartTime,
+    bool isTherapeutic,
+    bool isHalfTime,
+    bool isAbcent,
+    void Function(bool) onPartTimeChanged,
+    void Function(bool) onTherapeuticChanged,
+    void Function(bool) onHalfTimeChanged,
+    void Function(bool) onAbcentChanged,
+  ) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        children: [
+          CheckboxListTile(
+            title: const Text("Temps partiel"),
+            value: isPartTime,
+            onChanged: (v) {
+              setState(() {
+                if (v == true) {
+                  onPartTimeChanged(true);
+                  onTherapeuticChanged(false);
+                  onHalfTimeChanged(false);
+                } else {
+                  onPartTimeChanged(false);
+                }
+              });
+            },
+          ),
+          CheckboxListTile(
+            title: const Text("Mi-temps thérapeutique"),
+            value: isTherapeutic,
+            onChanged: (v) {
+              setState(() {
+                if (v == true) {
+                  onTherapeuticChanged(true);
+                  onPartTimeChanged(false);
+                  onHalfTimeChanged(false);
+                } else {
+                  onTherapeuticChanged(false);
+                }
+              });
+            },
+          ),
+          CheckboxListTile(
+            title: const Text("Mi-temps"),
+            value: isHalfTime,
+            onChanged: (v) {
+              setState(() {
+                if (v == true) {
+                  onHalfTimeChanged(true);
+                  onPartTimeChanged(false);
+                  onTherapeuticChanged(false);
+                } else {
+                  onHalfTimeChanged(false);
+                }
+              });
+            },
+          ),
+          CheckboxListTile(
+            title: const Text("Absent"),
+            value: isAbcent,
+            onChanged: (v) => setState(() => onAbcentChanged(v ?? false)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUpdateActions(
+    BuildContext context,
+    BuildContext dialogContext,
+    TextEditingController firstNameController,
+    TextEditingController nameController,
+    String id,
+    bool isPartTime,
+    bool isTherapeutic,
+    bool isHalfTime,
+    bool isAbcent,
+  ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('Annuler'),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: () async {
+            final firstName = firstNameController.text.trim();
+            final name = nameController.text.trim();
+
+            if (firstName.isEmpty || name.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Veuillez remplir tous les champs'),
+                ),
+              );
+              return;
+            }
+
+            await workersRef.doc(id).update({
+              'firstName': firstName[0].toUpperCase() + firstName.substring(1),
+              'name': name.toUpperCase(),
+              'isPartTime': isPartTime,
+              'isTherapeutic': isTherapeutic,
+              'isFullTime': (!isPartTime && !isTherapeutic && !isHalfTime),
+              'isHalfTime': isHalfTime,
+              'isAbcent': isAbcent,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+
+            if (context.mounted) {
+              Navigator.of(dialogContext).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Travailleur mis à jour ✅')),
+              );
+            }
+          },
+          child: const Text('Mettre à jour'),
+        ),
+      ],
+    );
   }
 }

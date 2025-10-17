@@ -15,7 +15,6 @@ import 'firebase_options.dart';
 import 'screens/auth/login_page.dart';
 import 'screens/home_page.dart';
 
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR', null);
@@ -91,13 +90,11 @@ class CleaningScheduleApp extends StatelessWidget {
         ),
         home: const AuthWrapper(),
         routes: {
-        '/listPlace': (context) => const ListPlace(),
-        '/workers': (context) => const ListWorkersPage(),
-        '/createdPlanning': (context) => const CreatedEventPage(),
-        '/profileInstructor' : (context) => const InstructorProfilePage()
-
-        // '/detailsPlace': (context) => const DetailsPlacePage(),
-},
+          '/listPlace': (context) => const ListPlace(),
+          '/workers': (context) => const ListWorkersPage(),
+          '/createdPlanning': (context) => const CreatedEventPage(),
+          '/profileInstructor': (context) => const InstructorProfilePage(),
+        },
       ),
     );
   }
@@ -115,7 +112,7 @@ class AuthWrapper extends StatelessWidget {
     if (user == null) {
       return const LoginPage();
     } else {
-      return const HomePage();
+      return HomePage();
     }
   }
 }
