@@ -1,7 +1,7 @@
 import 'package:cleaning_schedule/controllers/auth_controller.dart';
 import 'package:cleaning_schedule/controllers/stub_controller.dart';
 import 'package:cleaning_schedule/screens/stubPages/consommation_page.dart';
-import 'package:cleaning_schedule/screens/stubPages/divers_page.dart';
+import 'package:cleaning_schedule/screens/stubPages/view_tasks_no_weekly_page.dart';
 import 'package:cleaning_schedule/screens/stubPages/planning_page.dart';
 import 'package:cleaning_schedule/screens/stubPages/rdv_calendar_page.dart';
 import 'package:cleaning_schedule/widgets/build_tab_item_widget.dart';
@@ -28,7 +28,7 @@ class _HomePageState extends State<HomePage> {
   final List<Widget> _pages = const [
     PlanningPage(),
     RdvCalendarPage(),
-    DiversPage(),
+    ViewTasksNoWeeklyPage(),
     ConsommationPage(),
   ];
 
@@ -47,7 +47,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    // final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       appBar: AppBar(
