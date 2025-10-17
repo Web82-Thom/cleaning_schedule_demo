@@ -71,9 +71,8 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
 
   String getRdvLabel(RdvModel rdv) {
     if (rdv.workerId == "TEAM") return "Équipe";
-    if (rdv.workerId.isNotEmpty) {
+    if (rdv.workerId.isNotEmpty)
       return _workersController.workersMap[rdv.workerId] ?? "Inconnu";
-    }
     if (rdv.monitorIds.isNotEmpty) return "Moniteur(s)";
     return "Inconnu";
   }
@@ -82,7 +81,9 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
     String text = rdv.heure;
     if (rdv.lieu?.isNotEmpty == true) text += " • ${rdv.lieu}";
     if (rdv.monitorIds.isNotEmpty) {
-      final monitorsNames = rdv.monitorIds.map((id) => monitorsMap[id] ?? "Inconnu").join(", ");
+      final monitorsNames = rdv.monitorIds
+          .map((id) => monitorsMap[id] ?? "Inconnu")
+          .join(", ");
       text += " • $monitorsNames";
     }
     return text;
@@ -105,46 +106,65 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
                 children: [
                   Text(
                     'Rendez-vous du ${DateFormat('dd/MM/yyyy').format(day)}',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  ...events.map((rdv) => Card(
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        child: ListTile(
-                          title: Text('${getRdvLabel(rdv)} • ${rdv.motif}'),
-                          subtitle: Text(getRdvSubtitle(rdv)),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit, color: Colors.blueAccent),
-                                onPressed: () async {
-                                  final result = await _openRdvForm(rdv: rdv);
-                                  if (result) {
-                                    final updatedEvents = await _rdvController.loadRdvs();
-                                    setState(() => rdvEvents = updatedEvents);
-                                    setModalState(() {
-                                      events = List.from(rdvEvents[dayKey] ?? []);
-                                    });
-                                  }
-                                },
+                  ...events.map(
+                    (rdv) => Card(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      child: ListTile(
+                        title: Text('${getRdvLabel(rdv)} • ${rdv.motif}'),
+                        subtitle: Text(getRdvSubtitle(rdv)),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.edit,
+                                color: Colors.blueAccent,
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.redAccent),
-                                onPressed: () async {
-                                  final deleted = await _rdvController.deleteRdv(context, rdv);
-                                  if (deleted) {
-                                    rdvEvents[dayKey]?.removeWhere((e) => e.id == rdv.id);
-                                    setModalState(() {
-                                      events.removeWhere((e) => e.id == rdv.id);
-                                    });
-                                  }
-                                },
+                              onPressed: () async {
+                                final result = await _openRdvForm(rdv: rdv);
+                                if (result) {
+                                  final updatedEvents = await _rdvController
+                                      .loadRdvs();
+                                  setState(() => rdvEvents = updatedEvents);
+                                  setModalState(() {
+                                    events = List.from(rdvEvents[dayKey] ?? []);
+                                  });
+                                }
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete,
+                                color: Colors.redAccent,
                               ),
-                            ],
-                          ),
+                              onPressed: () async {
+                                final deleted = await _rdvController.deleteRdv(
+                                  context,
+                                  rdv,
+                                );
+                                if (deleted) {
+                                  rdvEvents[dayKey]?.removeWhere(
+                                    (e) => e.id == rdv.id,
+                                  );
+                                  /// Pour forcer TableCalendar à se rebuild
+                                  setState(() {});
+                                  setModalState(() {
+                                    events.removeWhere((e) => e.id == rdv.id);
+                                  });
+                                }
+                              },
+                            ),
+                          ],
                         ),
-                      )),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   ListTile(
                     leading: const Icon(Icons.add),
@@ -171,7 +191,8 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading)
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Rendez-vous')),
@@ -182,7 +203,7 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
               children: [
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 600),
-                  child: TableCalendar(
+                  child: TableCalendar<RdvModel>(
                     rowHeight: 60,
                     daysOfWeekHeight: 30,
                     locale: 'fr_FR',
@@ -214,6 +235,77 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
                         shape: BoxShape.circle,
                       ),
                     ),
+                    calendarBuilders: CalendarBuilders<RdvModel>(
+                      markerBuilder: (context, day, events) {
+                        final rdvs = events.cast<RdvModel>();
+                        if (rdvs.isEmpty) return const SizedBox.shrink();
+
+                        List<Widget> markers = [];
+
+                        // Travailleur seul → noir
+                        if (rdvs.any(
+                          (r) =>
+                              r.workerId.isNotEmpty &&
+                              r.workerId != "TEAM" &&
+                              r.monitorIds.isEmpty,
+                        )) {
+                          markers.add(
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: Colors.black,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          );
+                        }
+
+                        // Moniteur seul → rose
+                        if (rdvs.any(
+                          (r) =>
+                              (r.workerId.isEmpty || r.workerId == "TEAM") &&
+                              r.monitorIds.isNotEmpty,
+                        )) {
+                          markers.add(
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: Colors.pink,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          );
+                        }
+
+                        // Travailleur + moniteur → demi noir/rose
+                        if (rdvs.any(
+                          (r) =>
+                              r.workerId.isNotEmpty && r.monitorIds.isNotEmpty,
+                        )) {
+                          markers.add(
+                            const SizedBox(
+                              width: 6,
+                              height: 6,
+                              child: CustomPaint(painter: HalfCirclePainter()),
+                            ),
+                          );
+                        }
+
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: markers
+                              .map(
+                                (m) => Padding(
+                                  padding: const EdgeInsets.only(right: 2),
+                                  child: m,
+                                ),
+                              )
+                              .toList(),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -223,4 +315,22 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
       ),
     );
   }
+}
+
+// Demi-point noir/rose
+class HalfCirclePainter extends CustomPainter {
+  const HalfCirclePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paintLeft = Paint()..color = Colors.black;
+    final paintRight = Paint()..color = Colors.pink;
+
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    canvas.drawArc(rect, 3.14 / 2, 3.14, true, paintLeft); // gauche noir
+    canvas.drawArc(rect, -3.14 / 2, 3.14, true, paintRight); // droite rose
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
