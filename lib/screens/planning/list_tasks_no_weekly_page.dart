@@ -1,3 +1,4 @@
+import 'package:cleaning_schedule/screens/planning/event_from_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -86,10 +87,10 @@ class NoWeeklyTasksPage extends StatelessWidget {
                         ),
                       ),
                       if (isOver10Days)
-                      const Padding(
-                        padding: EdgeInsets.only(left: 8),
-                        child: Icon(Icons.warning, color: Colors.red),
-                      ),
+                        const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Icon(Icons.warning, color: Colors.red),
+                        ),
                     ],
                   ),
                   subtitle: Text(
@@ -97,6 +98,17 @@ class NoWeeklyTasksPage extends StatelessWidget {
                     style: const TextStyle(color: Colors.black54),
                   ),
                   leading: const Icon(Icons.cleaning_services_outlined),
+                  onTap: isOver10Days
+                  ? () {
+                      // ✅ Ouvre le formulaire pour reprogrammer
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => EventFormPage(eventId: docs[index].id),
+                        ),
+                      );
+                    }
+                  : null, // non cliquable si pas rouge
                 ),
               );
             },

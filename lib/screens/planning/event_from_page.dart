@@ -63,8 +63,8 @@ class _EventFormPageState extends State<EventFormPage> {
     await _loadPlaces();
     if (_isEditing) await _loadEventData();
     await _loadWorkers();
-    if(mounted)
-    {setState(() => _loading = false);}
+    if(!mounted) return;
+    setState(() => _loading = false);
   }
 
   Future<void> _loadEventData() async {
@@ -73,6 +73,7 @@ class _EventFormPageState extends State<EventFormPage> {
     if (!doc.exists) return;
 
     final data = doc.data() as Map<String, dynamic>;
+    if(!mounted) return;
     setState(() {
       _selectedDate = (data['day'] as Timestamp).toDate();
       _timeSlot = data['timeSlot'] ?? 'morning';
@@ -118,7 +119,7 @@ class _EventFormPageState extends State<EventFormPage> {
       loadedPlaces.add({'id': doc.id, 'name': placeName});
       loadedSubPlaces[placeName] = subPlaces;
     }
-
+    if(!mounted) return;
     setState(() {
       _places = loadedPlaces;
       _subPlacesMap = loadedSubPlaces;
@@ -159,6 +160,7 @@ class _EventFormPageState extends State<EventFormPage> {
     }).toList();
 
     workersList.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
+    if(!mounted) return;
     setState(() => _workers = workersList);
   }
 
