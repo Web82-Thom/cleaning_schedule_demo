@@ -65,7 +65,7 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
     });
   }
 
-  // ---------- Gestion safe de subPlace ----------
+  // ---------- Gestion  de subPlace ----------
   String formatSubPlace(dynamic subPlace) {
     if (subPlace == null) return '';
 
@@ -81,6 +81,101 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
 
     return '';
   }
+
+  // ---------- récuperer le nom des travailleurs ----------
+  String getWorkerNames(List<String> ids) {
+    return ids.map((id) => _workersMap[id] ?? 'Inconnu').join(', ');
+  }
+
+  //------------ construction scroll et chevron dans les cellules
+  Widget buildScrollableCell(List<Map<String, dynamic>> events) {
+  final scrollController = ScrollController();
+  bool showChevron = false;
+
+  return StatefulBuilder(
+    builder: (context, setInnerState) {
+      scrollController.addListener(() {
+        final maxScroll = scrollController.position.maxScrollExtent;
+        final current = scrollController.offset;
+        final shouldShow = current < maxScroll;
+        if (shouldShow != showChevron) {
+          setInnerState(() => showChevron = shouldShow);
+        }
+      });
+
+      return Stack(
+        children: [
+          Scrollbar(
+            controller: scrollController,
+            thumbVisibility: true,
+            thickness: 4,
+            radius: const Radius.circular(4),
+            trackVisibility: true,
+            child: ListView(
+              controller: scrollController,
+              children: events.map((e) => buildEventCell(e)).toList(),
+            ),
+          ),
+          if (showChevron)
+            const Positioned(
+              bottom: 2,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Icon(
+                  Icons.arrow_circle_down_sharp,
+                  color: Colors.red,
+                  size: 20,
+                ),
+              ),
+            ),
+        ],
+      );
+    },
+  );
+}
+
+  //------------ construction des cellules ----------------
+  Widget buildEventCell(Map<String, dynamic> e) {
+  final sub = formatSubPlace(e['subPlace']);
+  final workerNames = getWorkerNames(e['workerIds']);
+  final place = e['place'] ?? 'Inconnu';
+  final baseColor = e['isWeeklyTask'] == true
+      ? Colors.purple.shade100
+      : Colors.primaries[place.hashCode % Colors.primaries.length].shade200;
+
+  return InkWell(
+    onTap: () => Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => EventFormPage(eventId: e['id'])),
+    ),
+    child: Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: baseColor,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.black12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text('• $place', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+              if (e['isWeeklyTask'] == false)
+                Container(width: 10, height: 10, margin: const EdgeInsets.only(left: 4), decoration: const BoxDecoration(color: Colors.purple, shape: BoxShape.circle)),
+            ],
+          ),
+          if (sub.isNotEmpty) Text(' - $sub', style: const TextStyle(fontSize: 12, color: Colors.black87)),
+          if (workerNames.isNotEmpty) const Text('Travailleurs:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic)),
+          if (workerNames.isNotEmpty) Text(workerNames, style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
+          if (e['task'] != null && e['task'] != '') Text('Tâche: ${e['task']}', style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    ),
+  );
+}
 
   // ---------- Build Widget ----------
   @override
@@ -281,8 +376,7 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                                 ),
                               ),
                               ..._weekDays.map((day) {
-                                final key =
-                                    '${DateFormat('yyyy-MM-dd').format(day)}_$slot';
+                                final key = '${DateFormat('yyyy-MM-dd').format(day)}_$slot';
                                 final cellEvents = grouped[key] ?? [];
 
                                 return Container(
@@ -305,144 +399,7 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                                       ),
                                     ),
                                   ) :
-                                  LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      final scrollController = ScrollController();
-                                      bool showChevron = false;
-
-                                      return StatefulBuilder(
-                                        builder: (context, setInnerState) {
-                                          scrollController.addListener(() {
-                                            final maxScroll = scrollController.position.maxScrollExtent;
-                                            final current = scrollController.offset;
-                                            final shouldShow = current < maxScroll;
-                                            if (shouldShow != showChevron) {
-                                              setInnerState(() => showChevron = shouldShow,
-                                              );
-                                            }
-                                          });
-
-                                          return Stack(
-                                            children: [
-                                              Scrollbar(
-                                                controller: scrollController,
-                                                thumbVisibility: true,
-                                                thickness: 4,
-                                                radius: const Radius.circular(4,),
-                                                trackVisibility: true,
-                                                child: ListView(
-                                                  controller: scrollController,
-                                                  children: cellEvents.map((e) {
-                                                    final sub = formatSubPlace(e['subPlace'],);
-                                                    final workerNames = (e['workerIds'] as List).map(
-                                                      (id) =>
-                                                          _workersMap[id] ??
-                                                          'Inconnu',
-                                                    ).join(', ');
-                                                    final place = e['place'] ?? 'Inconnu';
-                                                    final baseColor = e['isWeeklyTask'] == true ? 
-                                                    Colors.purple.shade100 : 
-                                                    Colors.primaries[
-                                                      place.hashCode % Colors.primaries.length
-                                                    ].shade200;
-
-                                                    return InkWell(
-                                                      onTap: () {
-                                                        Navigator.push(context,MaterialPageRoute(builder: (_) => EventFormPage(eventId: e['id'])));
-                                                      },
-                                                      child: Container(
-                                                        margin: const EdgeInsets.only(bottom: 6),
-                                                        padding: const EdgeInsets.all(6),
-                                                        decoration: BoxDecoration(
-                                                          color:baseColor,
-                                                          borderRadius: BorderRadius .circular(6,),
-                                                          border: Border.all(
-                                                            color: Colors.black12,
-                                                          ),
-                                                        ),
-                                                        child: Column(
-                                                          crossAxisAlignment:CrossAxisAlignment.start,
-                                                          children: [
-                                                            Row(
-                                                              children: [
-                                                                Expanded(
-                                                                  child: Text(
-                                                                    '• $place',
-                                                                    style: const TextStyle(
-                                                                      fontWeight: FontWeight.bold,
-                                                                      fontSize: 12,
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                                if (e['isWeeklyTask'] == false) // <-- pastille violette
-                                                                Container(
-                                                                  width: 10,
-                                                                  height: 10,
-                                                                  margin: const EdgeInsets.only(left: 4),
-                                                                  decoration: BoxDecoration(
-                                                                    color: Colors.purple,
-                                                                    shape: BoxShape.circle,
-                                                                  ),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                            if (sub.isNotEmpty)
-                                                            Text(
-                                                              ' - $sub',
-                                                              style: const TextStyle(
-                                                                fontSize: 12,
-                                                                color: Colors.black87,
-                                                              ),
-                                                            ),
-                                                            if (workerNames.isNotEmpty)
-                                                            const Text('Travailleurs:',
-                                                              style: TextStyle(
-                                                                fontSize: 12,
-                                                                fontWeight: FontWeight.bold,
-                                                                fontStyle: FontStyle.italic,
-                                                              ),
-                                                            ),
-                                                            if (workerNames.isNotEmpty)
-                                                            Text(
-                                                              workerNames,
-                                                              style: const TextStyle(
-                                                                fontSize: 12,
-                                                                fontStyle: FontStyle.italic,
-                                                              ),
-                                                            ),
-                                                            if (e['task'] != null && e['task'] != '')
-                                                            Text(
-                                                              'Tâche: ${e['task']}',
-                                                              style: const TextStyle(
-                                                                fontSize:12,
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }).toList(),
-                                                ),
-                                              ),
-                                              if (showChevron)
-                                              Positioned(
-                                                bottom: 2,
-                                                left: 0,
-                                                right: 0,
-                                                child: Center(
-                                                  child: Icon(
-                                                    Icons.arrow_circle_down_sharp,
-                                                    color: Colors.red,
-                                                    size: 20,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                    },
-                                  ),
+                                  buildScrollableCell(cellEvents),
                                 );
                               }).toList(),
                             ],
