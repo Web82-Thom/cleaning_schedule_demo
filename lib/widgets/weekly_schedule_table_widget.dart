@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cleaning_schedule/controllers/pdf_controller.dart';
 import 'package:cleaning_schedule/screens/list_pdf_page.dart';
 import 'package:cleaning_schedule/screens/planning/event_from_page.dart';
 import 'package:path_provider/path_provider.dart';
@@ -24,7 +25,6 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
   late DateTime _endOfWeek;
   Map<String, String> _workersMap = {}; // workerId → workerName
   int get _weekNumber => _getWeekNumber(_startOfWeek);
-
 
   @override
   void initState() {
@@ -140,9 +140,9 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
         } else {
           subPlace = [subPlace];
         }
-      } else if (subPlace is! List){
-          subPlace = [];
-        }
+      } else if (subPlace is! List) {
+        subPlace = [];
+      }
       return {
         'id': doc.id,
         'day': (data['day'] as Timestamp).toDate(),
@@ -156,147 +156,6 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
     }).toList();
 
     return [...events, ...noWeeklyEvents];
-  }
-
-  // ---------- Génération PDF ----------
-  Future<void> generateWeeklyPdf(List<Map<String, dynamic>> events) async {
-    final pdf = pw.Document();
-    final days = _weekDays;
-
-    // Grouper par jour + créneau
-    Map<String, List<Map<String, dynamic>>> grouped = {};
-    for (var e in events) {
-      final key = '${DateFormat('yyyy-MM-dd').format(e['day'])}_${e['timeSlot']}';
-      grouped.putIfAbsent(key, () => []).add(e);
-    }
-
-    const int maxEventsPerCell = 6; // max d'événements affichés par page pour une cellule
-
-    pw.Widget buildEventList(List<Map<String, dynamic>> list, int startIndex) {
-      if (list.isEmpty) return pw.Text('—', style: const pw.TextStyle(color: PdfColors.grey700, fontSize: 10));
-      final sublist = list.skip(startIndex).take(maxEventsPerCell).toList();
-
-      return pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: sublist.map((e) {
-          final workers = (e['workerIds'] as List)
-              .map((id) => _workersMap[id] ?? 'Inconnu')
-              .join(', ');
-
-          final subPlace = e['subPlace'] != null && e['subPlace'] != '' ? ' (${e['subPlace']})' : '';
-          final task = e['task'] != null && e['task'] != '' ? ' • ${e['task']}' : '';
-
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                e['place'] ?? 'Lieu inconnu',
-                style:  pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blue800, fontSize: 11),
-              ),
-              if (subPlace.isNotEmpty)
-                pw.Text(
-                  subPlace,
-                  style: const pw.TextStyle(color: PdfColors.indigo, fontSize: 10),
-                ),
-              if (task.isNotEmpty)
-                pw.Text(
-                  task,
-                  style: const pw.TextStyle(color: PdfColors.deepPurple, fontSize: 10),
-                ),
-              pw.Text(
-                'Travailleurs : $workers',
-                style: const pw.TextStyle(color: PdfColors.grey800, fontSize: 9),
-              ),
-              pw.SizedBox(height: 4),
-            ],
-          );
-        }).toList(),
-      );
-    }
-
-    for (var slot in ['morning', 'afternoon']) {
-      int maxChunks = 1;
-      Map<String, int> dayChunks = {};
-      for (var day in days) {
-        final key = '${DateFormat('yyyy-MM-dd').format(day)}_$slot';
-        final count = grouped[key]?.length ?? 0;
-        final chunks = (count / maxEventsPerCell).ceil();
-        dayChunks[key] = chunks;
-        if (chunks > maxChunks) maxChunks = chunks;
-      }
-
-      for (int chunkIndex = 0; chunkIndex < maxChunks; chunkIndex++) {
-        pdf.addPage(
-          pw.MultiPage(
-            pageFormat: PdfPageFormat.a4.landscape,
-            margin: const pw.EdgeInsets.all(16),
-            build: (context) {
-              return [
-                pw.Text(
-                  '${slot == 'morning' ? 'MATIN' : 'APRÈS-MIDI'} - Semaine $_weekNumber',
-                  style: pw.TextStyle(
-                    fontSize: 18,
-                    fontWeight: pw.FontWeight.bold,
-                    color: slot == 'morning' ? PdfColors.orange800 : PdfColors.teal800,
-                  ),
-                ),
-                pw.SizedBox(height: 10),
-                pw.Table(
-                  border: pw.TableBorder.all(color: PdfColors.grey, width: 0.5),
-                  columnWidths: {
-                    for (int i = 0; i < days.length; i++) i: const pw.FlexColumnWidth()
-                  },
-                  children: [
-                    // Ligne des jours
-                    pw.TableRow(
-                      children: days.map((day) {
-                        final label = DateFormat('EEEE', 'fr_FR').format(day).toUpperCase();
-                        return pw.Padding(
-                          padding: const pw.EdgeInsets.all(4),
-                          child: pw.Center(
-                            child: pw.Text(
-                              label,
-                              style:  pw.TextStyle(
-                                fontWeight: pw.FontWeight.bold,
-                                color: PdfColors.green,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    // Ligne des événements
-                    pw.TableRow(
-                      children: days.map((day) {
-                        final key = '${DateFormat('yyyy-MM-dd').format(day)}_$slot';
-                        final eventsForDay = grouped[key] ?? [];
-                        return pw.Padding(
-                          padding: const pw.EdgeInsets.all(4),
-                          child: buildEventList(eventsForDay, chunkIndex * maxEventsPerCell),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ),
-              ];
-            },
-          ),
-        );
-      }
-    }
-
-    final dir = await getApplicationDocumentsDirectory();
-    final fileName = 'planning_week_$_weekNumber.pdf';
-    final file = File('${dir.path}/$fileName');
-    await file.writeAsBytes(await pdf.save());
-    await OpenFilex.open(file.path);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('PDF généré : $fileName ✅')),
-      );
-    }
   }
 
   // ---------- Build Widget ----------
@@ -356,30 +215,37 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                   ),
                   tooltip: 'Voir les PDF enregistrés',
                   onLongPress: () async {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text(
-                          'Exporter en PDF',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                        content: Text(
-                          'Voulez-vous générer le PDF du planning de la semaine $_weekNumber ?',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Annuler'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('Confirmer'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirmed == true) generateWeeklyPdf(events);
-                  },
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Exporter en PDF'),
+        content: Text('Voulez-vous générer le PDF du planning de la semaine $_weekNumber ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirmer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await PdfController.generateWeeklyPdf(
+        events: events,
+        workersMap: _workersMap,
+        weekNumber: _weekNumber,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF généré pour la semaine $_weekNumber ✅')),
+        );
+      }
+    }
+  },
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -471,158 +337,270 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                           ),
                         ],
                       ),
-                      for (var period in ['morning', 'afternoon'])
-                        Row(
+                      // Fonction pour construire matin/après-midi
+                      for (var slot in ['morning', 'afternoon'])
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              width: 70, // largeur fixe de la colonne
-                              height: 330, // hauteur fixe de la colonne
-                              color: Colors.grey.shade300,
-                              child: Center(
-                                child: Transform.rotate(
-                                  angle: -3.14 / 2, // rotation 90° CCW
-                                  child: FittedBox(
-                                    fit: BoxFit.contain,
-                                    child: Text(
-                                      period == 'morning' ? 'MATIN' : 'APRÈS-MIDI',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14, // taille initiale
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 70,
+                                  height: 600,
+                                  color: Colors.grey.shade300,
+                                  child: Center(
+                                    child: Transform.rotate(
+                                      angle: -3.14 / 2,
+                                      child: FittedBox(
+                                        fit: BoxFit.contain,
+                                        child: Text(
+                                          slot == 'morning'
+                                              ? 'MATIN'
+                                              : 'APRÈS-MIDI',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ),
+                                ..._weekDays.map((day) {
+                                  final key =
+                                      '${DateFormat('yyyy-MM-dd').format(day)}_$slot';
+                                  final cellEvents = grouped[key] ?? [];
 
-                            ..._weekDays.map((day) {
-                              final key =
-                                  '${DateFormat('yyyy-MM-dd').format(day)}_$period';
-                              final cellEvents = grouped[key] ?? [];
-
-                              return Container(
-                                width: 180,
-                                height: 330,
-                                margin: const EdgeInsets.all(2),
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: period == 'morning'
-                                      ? Colors.blue.shade100
-                                      : Colors.orange.shade100,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: cellEvents.isEmpty
-                                    ? const Center(
-                                        child: Text(
-                                          '—',
-                                          style: TextStyle(
-                                            color: Colors.black54,
-                                          ),
-                                        ),
-                                      )
-                                    : ListView(
-                                        children: cellEvents.map((e) {
-                                          final sub = formatSubPlace(
-                                            e['subPlace'],
-                                          );
-                                          final workerNames =
-                                              (e['workerIds'] as List)
-                                                  .map(
-                                                    (id) =>
-                                                        _workersMap[id] ??
-                                                        'Inconnu',
-                                                  )
-                                                  .join(', ');
-                                          final place = e['place'] ?? 'Inconnu';
-                                          final baseColor =
-                                              e['isNoWeekly'] == true
-                                              ? Colors.purple.shade100
-                                              : Colors
-                                                    .primaries[place.hashCode %
-                                                        Colors.primaries.length]
-                                                    .shade200;
-
-                                          return InkWell(
-                                            onTap: () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (_) => EventFormPage(
-                                                    eventId: e['id'],
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                            child: Container(
-                                              margin: const EdgeInsets.only(
-                                                bottom: 6,
-                                              ),
-                                              padding: const EdgeInsets.all(6),
-                                              decoration: BoxDecoration(
-                                                color: baseColor,
-                                                borderRadius:
-                                                    BorderRadius.circular(6),
-                                                border: Border.all(
-                                                  color: Colors.black12,
-                                                ),
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    '• $place',
-                                                    style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                  if (sub.isNotEmpty)
-                                                    Text(
-                                                      ' - $sub',
-                                                      style: const TextStyle(
-                                                        fontSize: 12,
-                                                        color: Colors.black87,
-                                                      ),
-                                                    ),
-                                                  if (workerNames.isNotEmpty)
-                                                    const Text(
-                                                      'Travailleurs:',
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontStyle:
-                                                            FontStyle.italic,
-                                                      ),
-                                                    ),
-                                                  if (workerNames.isNotEmpty)
-                                                    Text(
-                                                      workerNames,
-                                                      style: const TextStyle(
-                                                        fontSize: 12,
-                                                        fontStyle:
-                                                            FontStyle.italic,
-                                                      ),
-                                                    ),
-                                                  if (e['task'] != null &&
-                                                      e['task'] != '')
-                                                    Text(
-                                                      'Tâche: ${e['task']}',
-                                                      style: const TextStyle(
-                                                        fontSize: 12,
-                                                      ),
-                                                    ),
-                                                ],
+                                  return Container(
+                                    width: 180,
+                                    height: 600,
+                                    margin: const EdgeInsets.all(2),
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: slot == 'morning'
+                                          ? Colors.blue.shade100
+                                          : Colors.orange.shade100,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: cellEvents.isEmpty
+                                        ? const Center(
+                                            child: Text(
+                                              '—',
+                                              style: TextStyle(
+                                                color: Colors.black54,
                                               ),
                                             ),
-                                          );
-                                        }).toList(),
-                                      ),
-                              );
-                            }).toList(),
+                                          )
+                                        : LayoutBuilder(
+                                            builder: (context, constraints) {
+                                              final scrollController =
+                                                  ScrollController();
+                                              bool showChevron = false;
+
+                                              return StatefulBuilder(
+                                                builder: (context, setInnerState) {
+                                                  scrollController.addListener(
+                                                    () {
+                                                      final maxScroll =
+                                                          scrollController
+                                                              .position
+                                                              .maxScrollExtent;
+                                                      final current =
+                                                          scrollController
+                                                              .offset;
+                                                      final shouldShow =
+                                                          current < maxScroll;
+                                                      if (shouldShow !=
+                                                          showChevron) {
+                                                        setInnerState(
+                                                          () => showChevron =
+                                                              shouldShow,
+                                                        );
+                                                      }
+                                                    },
+                                                  );
+
+                                                  return Stack(
+                                                    children: [
+                                                      Scrollbar(
+                                                        controller:
+                                                            scrollController,
+                                                        thumbVisibility: true,
+                                                        thickness: 4,
+                                                        radius:
+                                                            const Radius.circular(
+                                                              4,
+                                                            ),
+                                                        trackVisibility: true,
+                                                        child: ListView(
+                                                          controller:
+                                                              scrollController,
+                                                          children: cellEvents.map((
+                                                            e,
+                                                          ) {
+                                                            final sub =
+                                                                formatSubPlace(
+                                                                  e['subPlace'],
+                                                                );
+                                                            final workerNames =
+                                                                (e['workerIds']
+                                                                        as List)
+                                                                    .map(
+                                                                      (id) =>
+                                                                          _workersMap[id] ??
+                                                                          'Inconnu',
+                                                                    )
+                                                                    .join(', ');
+                                                            final place =
+                                                                e['place'] ??
+                                                                'Inconnu';
+                                                            final baseColor =
+                                                                e['isNoWeekly'] ==
+                                                                    true
+                                                                ? Colors
+                                                                      .purple
+                                                                      .shade100
+                                                                : Colors
+                                                                      .primaries[place
+                                                                              .hashCode %
+                                                                          Colors
+                                                                              .primaries
+                                                                              .length]
+                                                                      .shade200;
+
+                                                            return InkWell(
+                                                              onTap: () {
+                                                                Navigator.push(
+                                                                  context,
+                                                                  MaterialPageRoute(
+                                                                    builder: (_) =>
+                                                                        EventFormPage(
+                                                                          eventId:
+                                                                              e['id'],
+                                                                        ),
+                                                                  ),
+                                                                );
+                                                              },
+                                                              child: Container(
+                                                                margin:
+                                                                    const EdgeInsets.only(
+                                                                      bottom: 6,
+                                                                    ),
+                                                                padding:
+                                                                    const EdgeInsets.all(
+                                                                      6,
+                                                                    ),
+                                                                decoration: BoxDecoration(
+                                                                  color:
+                                                                      baseColor,
+                                                                  borderRadius:
+                                                                      BorderRadius.circular(
+                                                                        6,
+                                                                      ),
+                                                                  border: Border.all(
+                                                                    color: Colors
+                                                                        .black12,
+                                                                  ),
+                                                                ),
+                                                                child: Column(
+                                                                  crossAxisAlignment:
+                                                                      CrossAxisAlignment
+                                                                          .start,
+                                                                  children: [
+                                                                    Text(
+                                                                      '• $place',
+                                                                      style: const TextStyle(
+                                                                        fontWeight:
+                                                                            FontWeight.bold,
+                                                                        fontSize:
+                                                                            12,
+                                                                      ),
+                                                                    ),
+                                                                    if (sub
+                                                                        .isNotEmpty)
+                                                                      Text(
+                                                                        ' - $sub',
+                                                                        style: const TextStyle(
+                                                                          fontSize:
+                                                                              12,
+                                                                          color:
+                                                                              Colors.black87,
+                                                                        ),
+                                                                      ),
+                                                                    if (workerNames
+                                                                        .isNotEmpty)
+                                                                      const Text(
+                                                                        'Travailleurs:',
+                                                                        style: TextStyle(
+                                                                          fontSize:
+                                                                              12,
+                                                                          fontWeight:
+                                                                              FontWeight.bold,
+                                                                          fontStyle:
+                                                                              FontStyle.italic,
+                                                                        ),
+                                                                      ),
+                                                                    if (workerNames
+                                                                        .isNotEmpty)
+                                                                      Text(
+                                                                        workerNames,
+                                                                        style: const TextStyle(
+                                                                          fontSize:
+                                                                              12,
+                                                                          fontStyle:
+                                                                              FontStyle.italic,
+                                                                        ),
+                                                                      ),
+                                                                    if (e['task'] !=
+                                                                            null &&
+                                                                        e['task'] !=
+                                                                            '')
+                                                                      Text(
+                                                                        'Tâche: ${e['task']}',
+                                                                        style: const TextStyle(
+                                                                          fontSize:
+                                                                              12,
+                                                                        ),
+                                                                      ),
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                            );
+                                                          }).toList(),
+                                                        ),
+                                                      ),
+                                                      if (showChevron)
+                                                        Positioned(
+                                                          bottom: 2,
+                                                          left: 0,
+                                                          right: 0,
+                                                          child: Center(
+                                                            child: Icon(
+                                                              Icons
+                                                                  .arrow_circle_down_sharp,
+                                                              color: Colors.red,
+                                                              size: 20,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  );
+                                                },
+                                              );
+                                            },
+                                          ),
+                                  );
+                                }).toList(),
+                              ],
+                            ),
+                            // Barre noire de séparation uniquement après le matin
+                            if (slot == 'morning')
+                              SizedBox(
+                                width: MediaQuery.of(context).size.width * 2.75,
+                                height: 4,
+                                child: Container(color: Colors.black),
+                              ),
                           ],
                         ),
                     ],

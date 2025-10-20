@@ -36,6 +36,7 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
   Future<void> _loadRdvs() async {
     setState(() => _loading = true);
     rdvEvents = await _rdvController.loadRdvs();
+    if(!mounted) return;
     setState(() => _loading = false);
   }
 
@@ -191,8 +192,9 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading)
+    if (_loading){
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Rendez-vous', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),)),
