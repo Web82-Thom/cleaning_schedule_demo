@@ -63,8 +63,8 @@ class _EventFormPageState extends State<EventFormPage> {
     await _loadPlaces();
     if (_isEditing) await _loadEventData();
     await _loadWorkers();
-    if (!mounted) return;
-    setState(() => _loading = false);
+    if(mounted)
+    {setState(() => _loading = false);}
   }
 
   Future<void> _loadEventData() async {
