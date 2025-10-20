@@ -51,7 +51,7 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Atelier de nettoyage'),
+        title: const Text('Atelier de nettoyage', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),),
         actions: [
           IconButton(
             icon: const Icon(Icons.person_sharp),
@@ -73,8 +73,8 @@ class _HomePageState extends State<HomePage> {
         heroTag: null, //evite le conflit
         onPressed: () => stubController.onFabPressed(context),
         tooltip: 'Nouveau planning',
-        child: const Icon(Icons.edit),
         backgroundColor: Colors.indigo,
+        child: const Icon(Icons.edit),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       // BottomAppBar avec notch pour FAB

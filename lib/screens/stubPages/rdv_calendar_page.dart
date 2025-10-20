@@ -195,7 +195,7 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Rendez-vous')),
+      appBar: AppBar(title: const Text('Rendez-vous', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),)),
       body: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(

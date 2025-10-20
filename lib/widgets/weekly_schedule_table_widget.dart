@@ -404,7 +404,7 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                         Expanded(
                           child: Text(
                             title,
-                            style: const TextStyle(fontSize: 14),
+                            style: const TextStyle(fontSize: 12),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
