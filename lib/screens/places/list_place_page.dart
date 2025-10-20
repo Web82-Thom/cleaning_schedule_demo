@@ -1,5 +1,5 @@
 import 'package:cleaning_schedule/screens/places/created_place.dart';
-import 'package:cleaning_schedule/screens/places/details_place_page.dart';
+import 'package:cleaning_schedule/screens/places/list_sub_places_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -11,156 +11,150 @@ class ListPlace extends StatefulWidget {
 }
 
 class _ListPlaceState extends State<ListPlace> {
-  final CollectionReference lieuxRef = FirebaseFirestore.instance.collection(
-    'places',
-  );
+  final CollectionReference lieuxRef =
+      FirebaseFirestore.instance.collection('places');
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Liste des lieux'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => setState(() {}),
-          ),
-        ],
-      ),
-
-      // --- Corps : liste des lieux ---
-      body: StreamBuilder<QuerySnapshot>(
-        stream: lieuxRef.orderBy('name').snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Text(
-                'Aucun lieu trouvé.\nAppuyez sur + pour en ajouter un.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-            );
-          }
-
-          final places = snapshot.data!.docs;
-
-          return ListView.builder(
-            itemCount: places.length,
-            itemBuilder: (context, index) {
-              final data = places[index].data() as Map<String, dynamic>;
-              final id = places[index].id;
-              final name = data['name'] ?? 'Sans nom';
-              final containsRooms = data['containsRooms'] ?? false;
-              final dateCreated = data['dateCreated'] != null
-                  ? (data['dateCreated'] as Timestamp).toDate()
-                  : null;
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                elevation: 3,
-                child: ListTile(
-                  leading: const Icon(Icons.location_on, color: Colors.indigo),
-                  title: Text(
-                    name,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        containsRooms ? 'Contient des pièces' : 'Lieu simple',
-                        style: TextStyle(
-                          color: containsRooms
-                              ? Colors.green
-                              : Colors.grey[700],
-                        ),
-                      ),
-                      if (dateCreated != null)
-                        Text(
-                          'Créé le ${dateCreated.day}/${dateCreated.month}/${dateCreated.year}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
-                    ],
-                  ),
-                  trailing: Wrap(
-                    spacing: 8,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blueAccent),
-                        tooltip: 'Modifier le nom',
-                        onPressed: () =>
-                            _showEditDialog(context, id, name, lieuxRef),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.red,
-                        ),
-                        tooltip: 'Supprimer le lieu',
-                        onPressed: () =>
-                            _confirmDeletePlace(context, id, name, lieuxRef),
-                      ),
-                    ],
-                  ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => DetailsPlacePage(
-                          placeId: id,
-                          name: name,
-                          containsRooms: containsRooms,
-                        ),
-                      ),
-                    );
-                  },
+    return SafeArea(
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Liste des lieux', style: TextStyle(fontSize: 15),),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () => setState(() {}),
+            ),
+          ],
+        ),
+      
+        // --- Corps : liste des lieux ---
+        body: StreamBuilder<QuerySnapshot>(
+          stream: lieuxRef.orderBy('name').snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+      
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return const Center(
+                child: Text(
+                  'Aucun lieu trouvé.\nAppuyez sur + pour en ajouter un.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
                 ),
               );
-            },
-          );
-        },
-      ),
+            }
+      
+            final places = snapshot.data!.docs;
+      
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 58.0),
+              child: ListView.builder(
+                itemCount: places.length,
+                itemBuilder: (context, index) {
+                  final data = places[index].data() as Map<String, dynamic>;
+                  final id = places[index].id;
+                  final name = data['name'] ?? 'Sans nom';
+                  final containsRooms = data['containsRooms'] ?? false;
+                    
+                  return Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    elevation: 3,
+                    child: ListTile(
+                      leading: const Icon(Icons.location_on, color: Colors.indigo),
+                      title: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      ),
+                      subtitle: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            containsRooms ? 'Contient des pièces' : 'Lieu simple',
+                            style: TextStyle(
+                              color: containsRooms ? Colors.green : Colors.grey[700],
+                              fontSize: 10,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.blueAccent, size: 20),
+                                tooltip: 'Modifier le nom',
+                                onPressed: () => _showEditDialog(context, id, name, lieuxRef),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                tooltip: 'Supprimer le lieu',
+                                onPressed: () => _confirmDeletePlace(context, id, name, lieuxRef),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ListSubPlacesPage(
+                              placeId: id,
+                              name: name,
+                              containsRooms: containsRooms,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
 
-      // --- Bouton Ajouter ---
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const CreatedPlace()),
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Ajouter un lieu'),
-        backgroundColor: Colors.indigo,
+
+                },
+              ),
+            );
+            
+          },
+        ),
+      
+        // --- Bouton Ajouter ---
+        floatingActionButton: FloatingActionButton.extended(
+          backgroundColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            side: const BorderSide(color: Colors.black, width: 1), // bordure noire
+            borderRadius: BorderRadius.circular(8), // coins arrondis
+          ),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CreatedPlace()),
+            );
+          },
+          icon: const Icon(Icons.add),
+          label: const Text('Ajouter un lieu', style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.indigo,
+            fontSize: 14,
+          ),),
+          // backgroundColor: Colors.indigo,
+        ),
       ),
     );
   }
 
   /// ✅ Modifier un lieu
-  void _showEditDialog(
-    BuildContext context,
-    String id,
-    String oldName,
-    CollectionReference lieuxRef,
-  ) {
-    final TextEditingController controller = TextEditingController(
-      text: oldName,
-    );
+  void _showEditDialog(BuildContext context, String id, String oldName,
+      CollectionReference lieuxRef) {
+    final TextEditingController controller =
+        TextEditingController(text: oldName);
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Modifier le nom du lieu'),
           content: TextField(
             controller: controller,
@@ -196,19 +190,14 @@ class _ListPlaceState extends State<ListPlace> {
   }
 
   /// ✅ Supprimer un lieu avec confirmation
-  Future<void> _confirmDeletePlace(
-    BuildContext context,
-    String id,
-    String name,
-    CollectionReference lieuxRef,
-  ) async {
+  Future<void> _confirmDeletePlace(BuildContext context, String id,
+      String name, CollectionReference lieuxRef) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text(
             'Supprimer le lieu',
             style: TextStyle(fontWeight: FontWeight.bold),

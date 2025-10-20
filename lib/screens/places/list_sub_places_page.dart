@@ -1,12 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-class DetailsPlacePage extends StatelessWidget {
+class ListSubPlacesPage extends StatelessWidget {
   final String placeId;
   final String name;
   final bool containsRooms;
 
-  const DetailsPlacePage({
+  const ListSubPlacesPage({
     super.key,
     required this.placeId,
     required this.name,
@@ -24,81 +24,90 @@ class DetailsPlacePage extends StatelessWidget {
         .collection('places')
         .doc(placeId);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(name)),
-
-      body: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: StreamBuilder<QuerySnapshot>(
-          stream: roomsRef.orderBy('name').snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              // ✅ Si aucune pièce, on repasse automatiquement containsRooms à false
-              placeRef.update({'containsRooms': false});
-              return const Center(
-                child: Text(
-                  'Aucune pièce trouvée.\nAppuyez sur + pour en ajouter une.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-              );
-            }
-
-            final rooms = snapshot.data!.docs;
-
-            // ✅ Si au moins une pièce, s’assurer que containsRooms = true
-            placeRef.update({'containsRooms': true});
-
-            return ListView.builder(
-              itemCount: rooms.length,
-              itemBuilder: (context, index) {
-                final data = rooms[index].data() as Map<String, dynamic>;
-                final roomName = data['name'] ?? 'Sans nom';
-                final id = rooms[index].id;
-
-                return Card(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 4,
-                  ),
-                  child: ListTile(
-                    leading: const Icon(Icons.meeting_room, color: Colors.blue),
-                    title: Text(
-                      roomName,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(
-                        Icons.delete_outline,
-                        color: Colors.redAccent,
-                      ),
-                      onPressed: () {
-                        deleteRoomWithConfirmation(
-                          context,
-                          roomsRef,
-                          id,
-                          roomName,
-                          placeRef,
-                        );
-                      },
-                    ),
+    return SafeArea(
+      child: Scaffold(
+        appBar: AppBar(title: Text(name)),
+      
+        body: Padding(
+          padding: const EdgeInsets.only(right: 12.0, left: 12, top:5, bottom: 80),
+          child: StreamBuilder<QuerySnapshot>(
+            stream: roomsRef.orderBy('name').snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+      
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                // ✅ Si aucune pièce, on repasse automatiquement containsRooms à false
+                placeRef.update({'containsRooms': false});
+                return const Center(
+                  child: Text(
+                    'Aucune pièce trouvée.\nAppuyez sur + pour en ajouter une.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
                 );
-              },
-            );
-          },
+              }
+      
+              final rooms = snapshot.data!.docs;
+      
+              // ✅ Si au moins une pièce, s’assurer que containsRooms = true
+              placeRef.update({'containsRooms': true});
+      
+              return ListView.builder(
+                itemCount: rooms.length,
+                itemBuilder: (context, index) {
+                  final data = rooms[index].data() as Map<String, dynamic>;
+                  final roomName = data['name'] ?? 'Sans nom';
+                  final id = rooms[index].id;
+      
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 4,
+                    ),
+                    child: ListTile(
+                      leading: const Icon(Icons.meeting_room, color: Colors.blue, size: 14,),
+                      title: Text(
+                        roomName,
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.redAccent,
+                          size: 16,
+                        ),
+                        onPressed: () {
+                          deleteRoomWithConfirmation(
+                            context,
+                            roomsRef,
+                            id,
+                            roomName,
+                            placeRef,
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
+              );
+              
+            },
+            
+          ),
         ),
-      ),
-
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddRoomDialog(context, roomsRef, placeRef),
-        icon: const Icon(Icons.add),
-        label: const Text('Ajouter une pièce'),
-        backgroundColor: Colors.indigo,
+      
+        floatingActionButton: FloatingActionButton.extended(
+          backgroundColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            side: const BorderSide(color: Colors.black, width: 1), // bordure noire
+            borderRadius: BorderRadius.circular(8), // coins arrondis
+          ),
+          onPressed: () => _showAddRoomDialog(context, roomsRef, placeRef),
+          icon: const Icon(Icons.add),
+          label: const Text('Ajouter une pièce'),
+        ),
       ),
     );
   }
