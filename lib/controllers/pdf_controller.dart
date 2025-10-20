@@ -6,7 +6,6 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:open_filex/open_filex.dart';
 
 class PdfController {
-  
   /// Génère le PDF du planning
   static Future<void> generateWeeklyPdf({
     required List<Map<String, dynamic>> events,
@@ -32,6 +31,7 @@ class PdfController {
 
     const int maxEventsPerCell = 6;
 
+    // Fonction pour construire la liste d'events d'une cellule
     pw.Widget buildEventList(List<Map<String, dynamic>> list, int startIndex) {
       if (list.isEmpty) {
         return pw.Text(
@@ -49,35 +49,45 @@ class PdfController {
               .map((id) => workersMap[id] ?? 'Inconnu')
               .join(', ');
 
-          final subPlace = e['subPlace'] != null && e['subPlace'] != ''
-              ? ' (${e['subPlace']})'
-              : '';
-          final task = e['task'] != null && e['task'] != ''
-              ? ' • ${e['task']}'
-              : '';
+          // Gestion subPlace propre
+          String subPlaceText = '';
+          if (e['subPlace'] != null) {
+            if (e['subPlace'] is List) {
+              subPlaceText =
+                  (e['subPlace'] as List).whereType<String>().join(', ');
+              if (subPlaceText.isNotEmpty) subPlaceText = ' ($subPlaceText)';
+            } else if (e['subPlace'] is String && e['subPlace'].trim().isNotEmpty) {
+              subPlaceText = ' (${e['subPlace']})';
+            }
+          }
+
+          final taskText =
+              (e['task'] != null && e['task'].toString().isNotEmpty)
+                  ? ' • ${e['task']}'
+                  : '';
 
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text(
                 e['place'] ?? 'Lieu inconnu',
-                style:  pw.TextStyle(
+                style: pw.TextStyle(
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.blue800,
                   fontSize: 11,
                 ),
               ),
-              if (subPlace.isNotEmpty)
+              if (subPlaceText.isNotEmpty)
                 pw.Text(
-                  subPlace,
+                  subPlaceText,
                   style: const pw.TextStyle(
                     color: PdfColors.indigo,
                     fontSize: 10,
                   ),
                 ),
-              if (task.isNotEmpty)
+              if (taskText.isNotEmpty)
                 pw.Text(
-                  task,
+                  taskText,
                   style: const pw.TextStyle(
                     color: PdfColors.deepPurple,
                     fontSize: 10,
@@ -97,6 +107,7 @@ class PdfController {
       );
     }
 
+    // Création des pages pour chaque créneau
     for (var slot in ['morning', 'afternoon']) {
       int maxChunks = 1;
       Map<String, int> dayChunks = {};
@@ -145,7 +156,7 @@ class PdfController {
                           child: pw.Center(
                             child: pw.Text(
                               label,
-                              style:  pw.TextStyle(
+                              style: pw.TextStyle(
                                 fontWeight: pw.FontWeight.bold,
                                 color: PdfColors.green,
                                 fontSize: 12,
@@ -178,6 +189,7 @@ class PdfController {
       }
     }
 
+    // Sauvegarde et ouverture
     final dir = await getApplicationDocumentsDirectory();
     final fileName = 'planning_week_$weekNumber.pdf';
     final file = File('${dir.path}/$fileName');

@@ -40,8 +40,12 @@ class WorkersController extends ChangeNotifier {
     for (var doc in snapshot.docs)
       doc.id: '${doc['firstName']} ${doc['name']}',
   };
+  notifyListeners(); 
   return workersMap;
 }
+
+
+
 
 
   /// Modifier un travailleur
