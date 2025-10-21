@@ -210,7 +210,6 @@ class PdfController extends ChangeNotifier {
     final file = File('${categoryDir.path}/$productName.pdf');
     await file.writeAsBytes(pdfBytes, flush: true);
     notifyListeners();
-    print('PDF généré : ${file.path}');
     return file;
   }
 
