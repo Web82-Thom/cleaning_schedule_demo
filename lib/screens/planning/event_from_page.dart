@@ -1,3 +1,4 @@
+import 'package:cleaning_schedule/main.dart';
 import 'package:cleaning_schedule/widgets/tasks_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -139,8 +140,8 @@ class _EventFormPageState extends State<EventFormPage> {
       };
     }).toList();
 
-    // 🔹 Vérifie qui est occupé sur ce jour et créneau
-    Set<String> busyWorkerIds = {};
+        // 🔹 Vérifie combien de fois chaque worker est occupé dans ce créneau
+    Map<String, int> busyCount = {};
     if (_selectedDate != null) {
       final eventsSnapshot = await eventsRef
           .where('day', isEqualTo: Timestamp.fromDate(_selectedDate!))
@@ -150,14 +151,23 @@ class _EventFormPageState extends State<EventFormPage> {
         final data = doc.data() as Map<String, dynamic>;
         final timeSlot = data['timeSlot'] ?? '';
         if (timeSlot == _timeSlot) {
-          busyWorkerIds.addAll(List<String>.from(data['workerIds'] ?? []));
+          final workerIds = List<String>.from(data['workerIds'] ?? []);
+          for (var wid in workerIds) {
+            busyCount[wid] = (busyCount[wid] ?? 0) + 1;
+          }
         }
       }
     }
 
     workersList = workersList.map((w) {
-      return {...w, 'isBusy': busyWorkerIds.contains(w['id'])};
+      final busyTimes = busyCount[w['id']] ?? 0;
+      return {
+        ...w,
+        'busyCount': busyTimes,
+        'isBusy': busyTimes > 0,
+      };
     }).toList();
+
 
     workersList.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
     if(!mounted) return;
@@ -198,14 +208,16 @@ class _EventFormPageState extends State<EventFormPage> {
 
     if (_isEditing && widget.eventId != null) {
       await eventsRef.doc(widget.eventId).update(event.toFirestore());
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Événement mis à jour ✅')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context,).showSnackBar(const SnackBar(content: 
+        Text('Événement mis à jour ✅',
+      )));
     } else {
       await eventsRef.add(event.toFirestore());
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Événement créé ✅')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context,).showSnackBar(const SnackBar(content: 
+        Text('Événement créé ✅'),
+      ));
     }
 
     Navigator.of(context).pop();
@@ -241,10 +253,63 @@ class _EventFormPageState extends State<EventFormPage> {
     }
   }
 
+  ///----------Show message pour indiquer la fin de l'horaire amenager----------///
+  void _showTooltip(BuildContext context, String message, GlobalKey key) {
+    final overlay = Overlay.of(context);
+    final renderBox = key.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+
+    final size = renderBox.size;
+    final offset = renderBox.localToGlobal(Offset.zero);
+
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: offset.dx + size.width / 2 - 75, // centrer le tooltip
+        top: offset.dy - 50, // au-dessus du widget
+        width: 150, // largeur fixe
+        child: Material(
+          color: Colors.transparent,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Tooltip container
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Text(
+                    message,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+              // Triangle pointant vers le bas
+              CustomPaint(
+                size: const Size(20, 10),
+                painter: _TriangleDownPainter(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(overlayEntry);
+
+    Future.delayed(const Duration(seconds: 3), () {
+      overlayEntry.remove();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_loading)
+    if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     // ✅ Liste sécurisée pour Dropdown afin d’éviter AssertionError
     final allTasks = [...tasksWidget.tasksWeekly, ...tasksWidget.tasksNoWeekly];
@@ -277,9 +342,7 @@ class _EventFormPageState extends State<EventFormPage> {
                 // 📅 Date
                 ListTile(
                   title: Text(
-                    _selectedDate == null
-                        ? 'Sélectionner une date'
-                        : 'Date: ${DateFormat('dd/MM/yyyy').format(_selectedDate!)}',
+                    _selectedDate == null ? 'Sélectionner une date': 'Date: ${DateFormat('dd/MM/yyyy').format(_selectedDate!)}',
                   ),
                   trailing: const Icon(Icons.calendar_today),
                   onTap: () async {
@@ -296,36 +359,34 @@ class _EventFormPageState extends State<EventFormPage> {
                   },
                 ),
                 const SizedBox(height: 16),
-
-                // 🕓 Créneau
-                Row(
-                  children: [
-                    Expanded(
-                      child: RadioListTile<String>(
-                        title: const Text('Matin'),
-                        value: 'morning',
-                        groupValue: _timeSlot,
-                        onChanged: (v) {
-                          setState(() => _timeSlot = v!);
-                          _loadWorkers();
-                        },
+                RadioGroup<String>(
+                  groupValue: _timeSlot,
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        _timeSlot = newValue;
+                      });
+                      _loadWorkers();
+                    }
+                  },
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: RadioListTile<String>(
+                          title: const Text('Matin'),
+                          value: 'morning',
+                        ),
                       ),
-                    ),
-                    Expanded(
-                      child: RadioListTile<String>(
-                        title: const Text('Après-midi'),
-                        value: 'afternoon',
-                        groupValue: _timeSlot,
-                        onChanged: (v) {
-                          setState(() => _timeSlot = v!);
-                          _loadWorkers();
-                        },
+                      Expanded(
+                        child: RadioListTile<String>(
+                          title: const Text('Après-midi'),
+                          value: 'afternoon',
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
-
                 // 📍 Lieu
                 DropdownButtonFormField<String>(
                   isExpanded: true,
@@ -333,15 +394,11 @@ class _EventFormPageState extends State<EventFormPage> {
                     labelText: 'Lieu',
                     border: OutlineInputBorder(),
                   ),
-                  items: _places
-                      .map(
-                        (p) => DropdownMenuItem<String>(
-                          value: p['name'],
-                          child: Text(p['name']),
-                        ),
-                      )
-                      .toList(),
-                  value: _selectedPlace,
+                  items: _places.map((p) => DropdownMenuItem<String>(
+                      value: p['name'],
+                      child: Text(p['name']),
+                    )).toList(),
+                  initialValue: _selectedPlace,
                   onChanged: (v) {
                     setState(() {
                       _selectedPlace = v;
@@ -351,10 +408,9 @@ class _EventFormPageState extends State<EventFormPage> {
                   validator: (v) => v == null ? 'Sélectionner un lieu' : null,
                 ),
                 const SizedBox(height: 16),
-
+                
                 // 🏠 Sous-lieux
-                if (_selectedPlace != null &&
-                    (_subPlacesMap[_selectedPlace!] ?? []).isNotEmpty)
+                if (_selectedPlace != null && (_subPlacesMap[_selectedPlace!] ?? []).isNotEmpty)
                   InputDecorator(
                     decoration: const InputDecoration(
                       labelText: 'Sous-lieux (optionnels)',
@@ -372,150 +428,232 @@ class _EventFormPageState extends State<EventFormPage> {
                           selectedColor: Colors.blue.shade100,
                           onSelected: (v) {
                             setState(() {
-                              if (v)
+                              if (v) {
                                 _selectedSubPlaces.add(sub);
-                              else
+                              } else {
                                 _selectedSubPlaces.remove(sub);
+                              }
                             });
                           },
                         );
                       }).toList(),
                     ),
                   ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // 🧹 Tâche
-                // 🧹 Tâche
-DropdownButtonFormField<String>(
-  isExpanded: true,
-  decoration: const InputDecoration(
-    labelText: 'Tâche (optionnelle)',
-    border: OutlineInputBorder(),
-  ),
-  value: _selectedTask,
-  items: [
-    const DropdownMenuItem<String>(
-      value: '', // valeur vide pour "aucune tâche"
-      child: Text('Aucune tâche', style: TextStyle(color: Colors.grey),),
-    ),
-    const DropdownMenuItem<String>(
-      enabled: false,
-      child: Text('— Tâches hebdomadaires ',
-          style: TextStyle(fontWeight: FontWeight.normal, color: Colors.grey)),
-    ),
-    ...([...tasksWidget.tasksWeekly]..sort())
-        .map((task) => DropdownMenuItem(value: task, child: Text(task)))
-        .toList(),
-    const DropdownMenuItem<String>(
-      enabled: false,
-      child: Text('— Tâches non hebdomadaires ',
-          style: TextStyle(fontWeight: FontWeight.normal, color: Colors.grey)),
-    ),
-    ...([...tasksWidget.tasksNoWeekly]..sort())
-        .map((task) => DropdownMenuItem(value: task, child: Text(task)))
-        .toList(),
-  ],
-  onChanged: (value) {
-  setState(() {
-    _selectedTask = value;
-    if (_selectedTask == null || _selectedTask!.isEmpty) {
-      _isWeeklyTask = true;
-    } else if (tasksWidget.tasksWeekly.contains(_selectedTask)) {
-      _isWeeklyTask = true;
-    } else {
-      _isWeeklyTask = false;
-    }
-  });
-},
-
-),
-
-
+                  // 🧹 Tâche
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Tâche (optionnelle)',
+                      border: OutlineInputBorder(),
+                    ),
+                    initialValue: _selectedTask,
+                    items: [
+                      const DropdownMenuItem<String>(
+                        value: '', // valeur vide pour "aucune tâche"
+                        child: Text('Aucune tâche', style: TextStyle(color: Colors.grey),),
+                      ),
+                      const DropdownMenuItem<String>(
+                        enabled: false,
+                        child: Text('— Tâches hebdomadaires ',
+                            style: TextStyle(fontWeight: FontWeight.normal, color: Colors.grey)),
+                      ),
+                      ...([...tasksWidget.tasksWeekly]..sort())
+                          .map((task) => DropdownMenuItem(value: task, child: Text(task))),
+                      const DropdownMenuItem<String>(
+                        enabled: false,
+                        child: Text('— Tâches non hebdomadaires ',
+                            style: TextStyle(fontWeight: FontWeight.normal, color: Colors.grey)),
+                      ),
+                      ...([...tasksWidget.tasksNoWeekly]..sort())
+                          .map((task) => DropdownMenuItem(value: task, child: Text(task))),
+                    ],
+                    onChanged: (value) {
+                    setState(() {
+                      _selectedTask = value;
+                      if (_selectedTask == null || _selectedTask!.isEmpty) {
+                        _isWeeklyTask = true;
+                      } else if (tasksWidget.tasksWeekly.contains(_selectedTask)) {
+                        _isWeeklyTask = true;
+                      } else {
+                        _isWeeklyTask = false;
+                      }
+                    });
+                  },
+                ),
                 const SizedBox(height: 16),
 
                 // 👷 Workers
-                _workers.isEmpty
-                    ? const CircularProgressIndicator()
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Assigné aux travailleurs',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          ..._workers.map((w) {
-                            final isBusy = w['isBusy'] ?? false;
-                            final isAbcent = w['isAbcent'] ?? false;
+                _workers.isEmpty ? const CircularProgressIndicator() : 
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Assigné aux travailleurs',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    ..._workers.map((w) {
+                      final isBusy = w['isBusy'] ?? false;
+                      final isAbcent = w['isAbcent'] ?? false;
+                      final workerKey = GlobalKey();
 
-                            final dayName = _selectedDate != null
-                                ? DateFormat(
-                                    'EEEE',
-                                    'fr_FR',
-                                  ).format(_selectedDate!)
-                                : '';
-                            final workDay =
-                                w['workSchedule']?[dayName.toLowerCase()] ?? {};
-                            final worksThisSlot = _timeSlot == 'morning'
-                                ? (workDay['worksMorning'] ?? true)
-                                : (workDay['worksAfternoon'] ?? true);
-                            final hasSpecialSchedule =
-                                workDay['endTime'] != null &&
-                                workDay['endTime'].toString().isNotEmpty;
-
-                            return CheckboxListTile(
-                              title: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      w['name'],
-                                      style: TextStyle(
-                                        color:
-                                            (!worksThisSlot ||
-                                                isAbcent ||
-                                                isBusy)
-                                            ? Colors.grey
-                                            : null,
-                                        decoration: isBusy
-                                            ? TextDecoration.lineThrough
-                                            : null,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  if (hasSpecialSchedule)
-                                    const Padding(
-                                      padding: EdgeInsets.only(left: 5),
-                                      child: Icon(
-                                        Icons.access_time,
-                                        size: 16,
-                                        color: Colors.orange,
-                                      ),
-                                    ),
+                      final dayName = _selectedDate != null
+                          ? DateFormat(
+                              'EEEE',
+                              'fr_FR',
+                            ).format(_selectedDate!)
+                          : '';
+                      final workDay =
+                          w['workSchedule']?[dayName.toLowerCase()] ?? {};
+                      final worksThisSlot = _timeSlot == 'morning'
+                          ? (workDay['worksMorning'] ?? true)
+                          : (workDay['worksAfternoon'] ?? true);
+                      final hasSpecialSchedule =
+                          workDay['endTime'] != null &&
+                          workDay['endTime'].toString().isNotEmpty;
+                      return GestureDetector(
+                        onLongPress: () async {
+                          final isBusy = w['isBusy'] ?? false;
+                          if (isBusy) {
+                            final timeText = _timeSlot == 'morning' ? 'ce matin' : 'cet après-midi';
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (dialogContext) => AlertDialog(
+                                title: const Text('Travailleur déjà occupé'),
+                                content: Text('${w['name']} est déjà occupé $timeText.\n'
+                                    'Voulez-vous l’assigner quand même à cet événement ?'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Non')),
+                                  ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Oui')),
                                 ],
                               ),
-                              value: _selectedWorkers.contains(w['id']),
-                              onChanged: (!worksThisSlot || isAbcent || isBusy)
-                                  ? null
-                                  : (v) {
-                                      setState(() {
-                                        if (v == true)
-                                          _selectedWorkers.add(w['id']);
-                                        else
-                                          _selectedWorkers.remove(w['id']);
-                                      });
-                                    },
                             );
-                          }).toList(),
-                        ],
-                      ),
+
+                            if (confirm == true) {
+                              setState(() {
+                                if (!_selectedWorkers.contains(w['id'])) _selectedWorkers.add(w['id']);
+                              });
+
+                              if (!mounted) return;
+                              ScaffoldMessenger.maybeOf(navigatorKey.currentContext!)?.showSnackBar(
+                                SnackBar(content: Text('${w['name']} ajouté à un autre événement ✅')),
+                              );
+                            }
+                          }
+                        },
+                        child: CheckboxListTile(
+                          key: workerKey,
+                          title: Row(
+                            children: [
+                              // 🧍 Nom du travailleur + icône horaire spécial
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        w['name'],
+                                        style: TextStyle(
+                                          color: (!worksThisSlot || isAbcent || (w['busyCount'] ?? 0) > 0)
+                                              ? Colors.grey
+                                              : null,
+                                          decoration: (w['busyCount'] ?? 0) > 0
+                                              ? TextDecoration.lineThrough
+                                              : null,
+                                          decorationThickness:
+                                              (1.0 + ((w['busyCount'] ?? 0) - 1) * 0.7).clamp(1.0, 4.0),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    SizedBox(width: 20,),
+                                    // ⏰ Icône d’horaire spécial juste à côté du nom
+                                    if (hasSpecialSchedule)
+                                    
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 4),
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            final dayName = _selectedDate != null
+                                                ? DateFormat('EEEE', 'fr_FR').format(_selectedDate!)
+                                                : '';
+                                            final workDay = w['workSchedule']?[dayName.toLowerCase()] ?? {};
+                                            final endTime = workDay['endTime'] ?? '??:??';
+
+                                            _showTooltip(
+                                              context,
+                                              '${w['name']} fini à $endTime aujourd’hui',
+                                              workerKey,
+                                            );
+                                          },
+                                          child: const Icon(
+                                            Icons.access_time,
+                                            size: 16,
+                                            color: Colors.orange,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+
+                              // 🔴 Badge animé "×N"
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 300),
+                                transitionBuilder: (child, animation) => ScaleTransition(
+                                  scale: CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+                                  child: FadeTransition(opacity: animation, child: child),
+                                ),
+                                child: (w['busyCount'] ?? 0) > 1
+                                    ? Container(
+                                        key: ValueKey<int>(w['busyCount']),
+                                        margin: const EdgeInsets.only(left: 6),
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.redAccent,
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Text(
+                                          '×${w['busyCount']}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      )
+                                    : const SizedBox.shrink(),
+                              ),
+                            ],
+                          ),
+
+
+
+                          value: _selectedWorkers.contains(w['id']),
+                          onChanged: (!worksThisSlot || isAbcent || isBusy)
+                              ? (isBusy
+                                  ? null
+                                  : null)
+                              : (v) {
+                                  setState(() {
+                                    if (v == true) {
+                                      _selectedWorkers.add(w['id']);
+                                    } else {
+                                      _selectedWorkers.remove(w['id']);
+                                    }
+                                  });
+                                },
+                        ),
+                      );
+                    }),
+                  ],
+                ),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: _submitForm,
                   child: Text(
-                    _isEditing
-                        ? 'Enregistrer les modifications'
-                        : 'Créer l’événement',
+                    _isEditing? 'Enregistrer les modifications': 'Créer l’événement',
                   ),
                 ),
               ],
@@ -525,4 +663,22 @@ DropdownButtonFormField<String>(
       ),
     );
   }
+}
+
+class _TriangleDownPainter extends CustomPainter {
+  final Color color = Colors.black87;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final path = Path();
+    path.moveTo(0, 0); // gauche
+    path.lineTo(size.width / 2, size.height); // pointe en bas
+    path.lineTo(size.width, 0); // droite
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
