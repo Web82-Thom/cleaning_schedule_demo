@@ -57,6 +57,7 @@ Future<void> main() async {
 
   runApp(const CleaningScheduleApp());
 }
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class CleaningScheduleApp extends StatelessWidget {
   const CleaningScheduleApp({super.key});
@@ -72,6 +73,7 @@ class CleaningScheduleApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         title: 'Cleaning Schedule',
         locale: const Locale('fr', 'FR'),
         supportedLocales: const [
