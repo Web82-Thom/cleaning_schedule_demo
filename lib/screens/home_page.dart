@@ -133,13 +133,55 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       body: _pages[_selectedIndex],
-      floatingActionButton: FloatingActionButton(
-        heroTag: null,
-        onPressed: () => stubController.onFabPressed(context),
-        tooltip: 'Nouveau planning',
-        backgroundColor: Colors.indigo,
-        child: const Icon(Icons.edit),
+      floatingActionButton: StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('toDoList').where('checked', isEqualTo: false).snapshots(),
+      builder: (context, snapshot) {
+        bool hasNotes = false;
+        if (snapshot.hasData) { 
+          hasNotes = snapshot.data!.docs.any((doc) {
+            final data = doc.data()! as Map<String, dynamic>;
+            return (data['note'] ?? '').toString().trim().isNotEmpty;
+          });
+        }
+
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              FloatingActionButton(
+                heroTag: null,
+                onPressed: () => stubController.onFabPressed(context),
+                tooltip: 'Nouveau planning',
+                backgroundColor: Colors.indigo,
+                child: const Icon(Icons.edit),
+              ),
+
+              // Badge animé
+              Positioned(
+                right: -2,
+                top: -2,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 300),
+                  opacity: hasNotes ? 1.0 : 0.0,
+                  child: AnimatedScale(
+                    duration: const Duration(milliseconds: 300),
+                    scale: hasNotes ? 1.0 : 0.0,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
+
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),

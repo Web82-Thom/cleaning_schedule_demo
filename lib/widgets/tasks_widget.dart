@@ -16,7 +16,7 @@ class TasksWidget extends ChangeNotifier{
     'Poussières',
     'Faîences',
     'Remise en Etat',
-    'Décapage',
-    'Toiles d\'araigner',
+    'Décâpage',
+    'Toiles d\'araignée',
     ];
 }

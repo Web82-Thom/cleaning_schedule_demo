@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 class ConsumableWidget extends ChangeNotifier{
   List<String> products = [
-    'prokliks brillant Rose',
-    'prokliks brillant Bleu',
-    'Détergent désifectant Rose \'LE VRAI\'',
+    'prokliks brillant Rouge',
+    'prokliks energy Bleu',
+    'Détergent désinfectant Rose \'LE VRAI\'',
     'Décapant',
     'Dosettes',
     'Lave +', 
