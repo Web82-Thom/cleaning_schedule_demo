@@ -8,11 +8,11 @@ class ConsumableWidget extends ChangeNotifier{
     'Décapant',
     'Dosettes',
     'Lave +', 
-    'Rince +'
+    'Rince +',
   ];
 
   List<String> cars = [
     'Berlingo',
-    'Boxer',
+    'Trafic',
   ];
 }
