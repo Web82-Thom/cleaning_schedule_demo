@@ -405,12 +405,6 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                               }),
                             ],
                           ),
-                          if (slot == 'morning')
-                          SizedBox(
-                            width: MediaQuery.of(context).size.width * 2.75,
-                            height: 4,
-                            child: Container(color: Colors.black),
-                          ),
                         ],
                       ),
                     ],
