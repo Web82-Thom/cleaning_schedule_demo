@@ -248,7 +248,7 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                         weekNumber: _weekNumber,
                       );
 
-                      if (mounted) {
+                      if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(
                             'PDF généré pour la semaine $_weekNumber ✅')),
@@ -304,8 +304,9 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
           body: FutureBuilder<List<Map<String, dynamic>>>(
             future: _scheduleController.loadAllEvents(),
             builder: (context, snapshot) {
-              if (!snapshot.hasData)
+              if (!snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
+              }
 
               final allEvents = snapshot.data!;
               Map<String, List<Map<String, dynamic>>> grouped = {};
@@ -401,7 +402,7 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                                   ) :
                                   buildScrollableCell(cellEvents),
                                 );
-                              }).toList(),
+                              }),
                             ],
                           ),
                           if (slot == 'morning')

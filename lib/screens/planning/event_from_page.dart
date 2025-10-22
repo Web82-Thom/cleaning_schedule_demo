@@ -412,132 +412,131 @@ class _EventFormPageState extends State<EventFormPage> {
                   },
                 ),
                 const SizedBox(height: 16),
-
                 // 👷 Workers
-                _workers.isEmpty
-                    ? const CircularProgressIndicator()
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Assigné aux travailleurs', style: TextStyle(fontWeight: FontWeight.bold)),
-                          ..._workers.map((w) {
-                            final isAbcent = w['isAbcent'] ?? false;
-                            final workerKey = GlobalKey();
-                            final dayName = _selectedDate != null
-                                ? DateFormat('EEEE', 'fr_FR').format(_selectedDate!)
-                                : '';
-                            final workDay = w['workSchedule']?[dayName.toLowerCase()] ?? {};
-                            final worksThisSlot = _timeSlot == 'morning'
-                                ? (workDay['worksMorning'] ?? true)
-                                : (workDay['worksAfternoon'] ?? true);
-                            final hasSpecialSchedule = workDay['endTime'] != null && workDay['endTime'].toString().isNotEmpty;
+                _workers.isEmpty?
+                const CircularProgressIndicator() : 
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Assigné aux travailleurs', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ..._workers.map((w) {
+                      final isAbcent = w['isAbcent'] ?? false;
+                      final workerKey = GlobalKey();
+                      final dayName = _selectedDate != null
+                          ? DateFormat('EEEE', 'fr_FR').format(_selectedDate!)
+                          : '';
+                      final workDay = w['workSchedule']?[dayName.toLowerCase()] ?? {};
+                      final worksThisSlot = _timeSlot == 'morning'
+                          ? (workDay['worksMorning'] ?? true)
+                          : (workDay['worksAfternoon'] ?? true);
+                      final hasSpecialSchedule = workDay['endTime'] != null && workDay['endTime'].toString().isNotEmpty;
 
-                            return GestureDetector(
-                              onLongPress: () async {
-                                final isBusy = w['isBusy'] ?? false;
-                                if (isBusy) {
-                                  final timeText = _timeSlot == 'morning' ? 'ce matin' : 'cet après-midi';
-                                  final confirm = await showDialog<bool>(
-                                    context: context,
-                                    builder: (dialogContext) => AlertDialog(
-                                      title: const Text('Travailleur déjà occupé'),
-                                      content: Text('${w['name']} est déjà occupé $timeText.\nVoulez-vous l’assigner quand même à cet événement ?'),
-                                      actions: [
-                                        TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Non')),
-                                        ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Oui')),
-                                      ],
-                                    ),
-                                  );
-
-                                  if (confirm == true) {
-                                    setState(() {
-                                      if (!_selectedWorkers.contains(w['id'])) _selectedWorkers.add(w['id']);
-                                    });
-                                    if (!mounted) return;
-                                    ScaffoldMessenger.maybeOf(navigatorKey.currentContext!)?.showSnackBar(
-                                        SnackBar(content: Text('${w['name']} ajouté à un autre événement ✅')));
-                                  }
-                                }
-                              },
-                              child: CheckboxListTile(
-                                key: workerKey,
-                                title: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Row(
-                                        children: [
-                                          Flexible(
-                                            child: Text(
-                                              w['name'],
-                                              style: TextStyle(
-                                                color: (!worksThisSlot || isAbcent || (w['busyCount'] ?? 0) > 0) ? Colors.grey : null,
-                                                decoration: (w['busyCount'] ?? 0) > 0 ? TextDecoration.lineThrough : null,
-                                                decorationThickness: (1.0 + ((w['busyCount'] ?? 0) - 1) * 0.7).clamp(1.0, 4.0),
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 20),
-                                          if (hasSpecialSchedule)
-                                            Padding(
-                                              padding: const EdgeInsets.only(left: 4),
-                                              child: GestureDetector(
-                                                onTap: () {
-                                                  final endTime = workDay['endTime'] ?? '??:??';
-                                                  _showTooltip(context, '${w['name']} fini à $endTime aujourd’hui', workerKey);
-                                                },
-                                                child: const Icon(Icons.access_time, size: 16, color: Colors.orange),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    AnimatedSwitcher(
-                                      duration: const Duration(milliseconds: 300),
-                                      transitionBuilder: (child, animation) => ScaleTransition(
-                                        scale: CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
-                                        child: FadeTransition(opacity: animation, child: child),
-                                      ),
-                                      child: (w['busyCount'] ?? 0) > 1
-                                          ? Container(
-                                              key: ValueKey<int>(w['busyCount']),
-                                              margin: const EdgeInsets.only(left: 6),
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(10)),
-                                              child: Text('×${w['busyCount']}', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                                            )
-                                          : const SizedBox.shrink(),
-                                    ),
-                                  ],
-                                ),
-                                value: _selectedWorkers.contains(w['id']),
-                                onChanged: (!worksThisSlot || isAbcent) ?
-                                null:  // worker ne peut pas travailler → désactivé
-                                (v) {
-                                  setState(() {
-                                    final isBusy = w['isBusy'] ?? false;
-
-                                    if (v == true) {
-                                      // Ajouter seulement si le worker n'est pas occupé
-                                      if (!isBusy && !_selectedWorkers.contains(w['id'])) {
-                                        _selectedWorkers.add(w['id']);
-                                      }
-                                    } else {
-                                      // Toujours possible de désélectionner
-                                      _selectedWorkers.remove(w['id']);
-                                    }
-
-                                    // Mise à jour de la pastille violette après toute modification
-                                    _updateWeeklyTaskStatus();
-                                  });
-                                },
-
+                      return GestureDetector(
+                        onLongPress: () async {
+                          final isBusy = w['isBusy'] ?? false;
+                          if (isBusy) {
+                            final timeText = _timeSlot == 'morning' ? 'ce matin' : 'cet après-midi';
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (dialogContext) => AlertDialog(
+                                title: const Text('Travailleur déjà occupé'),
+                                content: Text('${w['name']} est déjà occupé $timeText.\nVoulez-vous l’assigner quand même à cet événement ?'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Non')),
+                                  ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Oui')),
+                                ],
                               ),
                             );
-                          }),
-                        ],
-                      ),
+
+                            if (confirm == true) {
+                              setState(() {
+                                if (!_selectedWorkers.contains(w['id'])) _selectedWorkers.add(w['id']);
+                              });
+                              if (!mounted) return;
+                              ScaffoldMessenger.maybeOf(navigatorKey.currentContext!)?.showSnackBar(
+                                  SnackBar(content: Text('${w['name']} ajouté à un autre événement ✅')));
+                            }
+                          }
+                        },
+                        child: CheckboxListTile(
+                          key: workerKey,
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        w['name'],
+                                        style: TextStyle(
+                                          color: (!worksThisSlot || isAbcent || (w['busyCount'] ?? 0) > 0) ? Colors.grey : null,
+                                          decoration: (w['busyCount'] ?? 0) > 0 ? TextDecoration.lineThrough : null,
+                                          decorationThickness: (1.0 + ((w['busyCount'] ?? 0) - 1) * 0.7).clamp(1.0, 4.0),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 20),
+                                    if (hasSpecialSchedule)
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 4),
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            final endTime = workDay['endTime'] ?? '??:??';
+                                            _showTooltip(context, '${w['name']} fini à $endTime aujourd’hui', workerKey);
+                                          },
+                                          child: const Icon(Icons.access_time, size: 16, color: Colors.orange),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 300),
+                                transitionBuilder: (child, animation) => ScaleTransition(
+                                  scale: CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+                                  child: FadeTransition(opacity: animation, child: child),
+                                ),
+                                child: (w['busyCount'] ?? 0) > 1
+                                    ? Container(
+                                        key: ValueKey<int>(w['busyCount']),
+                                        margin: const EdgeInsets.only(left: 6),
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(10)),
+                                        child: Text('×${w['busyCount']}', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                      )
+                                    : const SizedBox.shrink(),
+                              ),
+                            ],
+                          ),
+                          value: _selectedWorkers.contains(w['id']),
+                          onChanged: (!worksThisSlot || isAbcent) ?
+                          null:  // worker ne peut pas travailler → désactivé
+                          (v) {
+                            setState(() {
+                              final isBusy = w['isBusy'] ?? false;
+
+                              if (v == true) {
+                                // Ajouter seulement si le worker n'est pas occupé
+                                if (!isBusy && !_selectedWorkers.contains(w['id'])) {
+                                  _selectedWorkers.add(w['id']);
+                                }
+                              } else {
+                                // Toujours possible de désélectionner
+                                _selectedWorkers.remove(w['id']);
+                              }
+
+                              // Mise à jour de la pastille violette après toute modification
+                              _updateWeeklyTaskStatus();
+                            });
+                          },
+
+                        ),
+                      );
+                    }),
+                  ],
+                ),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: _submitForm,

@@ -192,16 +192,13 @@ class _DetailsProductPageState extends State<DetailsProductPage> {
                         if(confirmed == true) {
                               pdfController.generateListProductByNamePdf(widget.productName, _records);
                         }
-                        if (mounted) {
+                        if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(
-                              'PDF généré pour la ${widget.productName} ✅')),
+                              'PDF généré pour la ${widget.productName} ✅'),
+                            ),
                           );
                         }
-                        print('Generated PDF');
-                        // creer une function pour generer un pdf pour un mois, selection du mois , generer un pdf.
-                        // la function sappel generateListProductByNamePdf, a mettre dans mon PdfController
-
                       }, 
                       icon: Icon(
                         Icons.picture_as_pdf,

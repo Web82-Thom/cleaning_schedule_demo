@@ -37,26 +37,41 @@ Future<void> main() async {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
-      print('✅ Firebase initialized on Web');
     } else if (Platform.isWindows) {
       // ✅ WINDOWS
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
-      print('✅ Firebase Core initialized on Windows (Auth disabled)');
     } else {
       // ✅ MOBILE (Android / iOS / macOS / Linux)
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
-      print('✅ Firebase initialized on ${Platform.operatingSystem}');
     }
-  } catch (e) {
-    print('❌ Firebase initialization failed: $e');
+  } catch (e, stack) {
+    debugPrint('🔥 Erreur lors de l’initialisation de Firebase : $e');
+    debugPrintStack(stackTrace: stack);
+
+    // En cas d’erreur critique, afficher une UI minimale
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Text(
+              'Erreur d’initialisation Firebase.\n$e',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        ),
+      ),
+    );
+    return; // stoppe l’exécution ici
   }
 
   runApp(const CleaningScheduleApp());
 }
+
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class CleaningScheduleApp extends StatelessWidget {

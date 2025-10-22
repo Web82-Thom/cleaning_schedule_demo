@@ -7,14 +7,12 @@ import 'package:cleaning_schedule/screens/stubPages/rdv_calendar_page.dart';
 import 'package:cleaning_schedule/widgets/build_tab_item_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/services.dart';
 
 class HomePage extends StatefulWidget {
   final FirebaseAuth auth;
 
-   HomePage({Key? key, FirebaseAuth? auth})
-      : auth = auth ?? FirebaseAuth.instance,
-        super(key: key);
+   HomePage({super.key, FirebaseAuth? auth})
+      : auth = auth ?? FirebaseAuth.instance;
 
   @override
   State<HomePage> createState() => _HomePageState();
