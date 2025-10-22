@@ -3,6 +3,7 @@ import 'package:cleaning_schedule/screens/consumables/list_pdf_products_page.dar
 import 'package:cleaning_schedule/screens/list_pdf_schedule_weekly_page.dart';
 import 'package:cleaning_schedule/screens/planning/event_from_page.dart';
 import 'package:cleaning_schedule/screens/planning/list_tasks_no_weekly_page.dart';
+import 'package:cleaning_schedule/screens/planning/to_do_list_page.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
 import 'package:cleaning_schedule/screens/instructors/instructor_profile_page.dart';
@@ -122,6 +123,7 @@ class CleaningScheduleApp extends StatelessWidget {
           '/listPdfProducts' : (context) => ListPdfProductsPage(),
           '/listPdfScheduleWeekly': (context) => ListPdfScheduleWeeklyPage(),
           '/listPdfCars': (context) => const ListPdfCarsPage(),
+          '/toDoListPage' : (context) => const ToDoListPage(),
         },
       ),
     );
