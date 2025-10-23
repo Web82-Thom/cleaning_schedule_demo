@@ -15,4 +15,21 @@ class ConsumableWidget extends ChangeNotifier{
     'Berlingo',
     'Trafic',
   ];
+
+  // foyer de vie
+  List<String> homeOfLife= [
+    'Caisse',
+    'T5'
+  ];
+
+  // les transferts
+  List<String> transfer= [
+    'Foyer de vie',
+    'Foyer d\'hébergement',
+  ];
+
+  List<String> villas= [
+    '1',
+    '2',
+  ];
 }
