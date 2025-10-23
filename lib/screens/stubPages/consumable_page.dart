@@ -1,4 +1,4 @@
-import 'package:cleaning_schedule/screens/consumables/details_accomodation_center_page.dart';
+import 'package:cleaning_schedule/screens/consumables/details_transfer_page.dart';
 import 'package:cleaning_schedule/screens/consumables/details_cars_page.dart';
 import 'package:cleaning_schedule/screens/consumables/details_products_page.dart';
 import 'package:cleaning_schedule/screens/consumables/details_home_of_life_page.dart';
@@ -89,7 +89,7 @@ class ConsumablePage extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => DetailsAccommodationCenterPage(transfer: item),
+                        builder: (_) => DetailsTransferPage(transfer: item),
                       ),
                     );
                   } if(isVillas){

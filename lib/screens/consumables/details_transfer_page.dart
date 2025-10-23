@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-class DetailsAccommodationCenterPage extends StatefulWidget {
+class DetailsTransferPage extends StatefulWidget {
   final String transfer; 
-  DetailsAccommodationCenterPage({required this.transfer,super.key});
+  DetailsTransferPage({required this.transfer,super.key});
 
   @override
-  State<DetailsAccommodationCenterPage> createState() => _DetailsAccomodationCenterPageState();
+  State<DetailsTransferPage> createState() => _DetailsAccomodationCenterPageState();
 }
 
-class _DetailsAccomodationCenterPageState extends State<DetailsAccommodationCenterPage>
+class _DetailsAccomodationCenterPageState extends State<DetailsTransferPage>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
