@@ -37,4 +37,8 @@ class ConsumableWidget extends ChangeNotifier{
     'Gamot',
     'Amsterdam',
   ];
+
+  List<String> otherPlaces= [
+    'Salle externe',
+  ];
 }

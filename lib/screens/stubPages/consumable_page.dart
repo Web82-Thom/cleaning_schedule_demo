@@ -1,3 +1,4 @@
+import 'package:cleaning_schedule/screens/consumables/details_other_places_page.dart';
 import 'package:cleaning_schedule/screens/consumables/details_transfer_page.dart';
 import 'package:cleaning_schedule/screens/consumables/details_cars_page.dart';
 import 'package:cleaning_schedule/screens/consumables/details_products_page.dart';
@@ -31,6 +32,7 @@ class ConsumablePage extends StatelessWidget {
       final isHomeOfLife = title.toLowerCase().contains('foyer de vie');
       final isTransfer = title.toLowerCase().contains('transfert');
       final isVillas = title.toLowerCase().contains('villas');
+      final isOtherPlaces = title.toLowerCase().contains('autres lieux');
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,10 +95,20 @@ class ConsumablePage extends StatelessWidget {
                       ),
                     );
                   } if(isVillas){
+                    print('object');
+
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => DetailsVillasPage(villa: item),
+                      ),
+                    );
+                  } if(isOtherPlaces){
+                    print('object');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DetailsOtherPlacesPage(otherPlacesName: item,),
                       ),
                     );
                   }
@@ -150,6 +162,8 @@ class ConsumablePage extends StatelessWidget {
             buildGrid(consumableWidget.transfer, 'Transferts'),
             const SizedBox(height: 20,),
             buildGrid(consumableWidget.villas, 'Les villas'),
+            const SizedBox(height: 20,),
+            buildGrid(consumableWidget.otherPlaces, 'Autres lieux'),
           ],
         ),
       ),

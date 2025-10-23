@@ -10,7 +10,7 @@ class DetailsHomeOfLifePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BuildTableForConsumableWidget(
       title: 'Foyer de vie',
-      fileNamePrefix: 'categoryHomeOfLife',
+      fileNamePrefix: 'foyerDeVie',
       elementName: homeOfLifeName,
       routePdfList: '/listPdfHomeOfLife',
     );

@@ -101,12 +101,9 @@ class _BuildTableForConsumableWidgetState
 
       final dir = await getApplicationDocumentsDirectory();
 
-      final safePrefix =
-          widget.fileNamePrefix.toLowerCase().replaceAll(' ', '_');
-      final safeElement =
-          widget.elementName.toLowerCase().replaceAll(' ', '_');
-
-      final file = File('${dir.path}/conso_${safePrefix}_${safeElement}.pdf');
+      final safePrefix = widget.fileNamePrefix.toLowerCase().replaceAll(' ', '_');
+      final safeElement = widget.elementName.toLowerCase().replaceAll(' ', '_');
+      final file = File('${dir.path}/conso_${safePrefix}_$safeElement.pdf');
 
       // 🔹 Écrase le fichier existant s'il existe
       if (await file.exists()) await file.delete();

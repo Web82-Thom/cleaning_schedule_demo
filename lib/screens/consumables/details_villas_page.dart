@@ -10,7 +10,7 @@ class DetailsVillasPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BuildTableForConsumableWidget(
       title: 'Villas',
-      fileNamePrefix: 'categoryVillas',
+      fileNamePrefix: 'Villas',
       elementName: villa,
       routePdfList: '/listPdfVillas',
     );

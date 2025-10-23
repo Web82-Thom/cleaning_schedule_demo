@@ -128,6 +128,7 @@ class CleaningScheduleApp extends StatelessWidget {
           '/listPdfHomeOfLife': (_) => const ListPdfPage(),
           '/listPdfTransfer': (_) => const ListPdfPage(),
           '/listPdfVillas' : (_) => const ListPdfPage(),
+          '/listPdfOtherPlaces' : (_) => const ListPdfPage(),
         },
       ),
     );

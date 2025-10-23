@@ -10,7 +10,7 @@ class DetailsTransferPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BuildTableForConsumableWidget(
       title: 'Transferts',
-      fileNamePrefix: 'categoryTransfer',
+      fileNamePrefix: 'Transferts',
       elementName: transfer,
       routePdfList: '/listPdfTransfer',
     );
