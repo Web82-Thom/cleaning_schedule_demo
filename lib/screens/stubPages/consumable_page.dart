@@ -70,7 +70,7 @@ class ConsumablePage extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => DetailsProductPage(productName: item),
+                        builder: (_) => DetailsProductPage(product: item),
                       ),
                     );
                   } if (isCars) {
@@ -95,8 +95,6 @@ class ConsumablePage extends StatelessWidget {
                       ),
                     );
                   } if(isVillas){
-                    print('object');
-
                     Navigator.push(
                       context,
                       MaterialPageRoute(
