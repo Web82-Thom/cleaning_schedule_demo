@@ -29,7 +29,12 @@ class ConsumableWidget extends ChangeNotifier{
   ];
 
   List<String> villas= [
-    '1',
-    '2',
+    'Pousiniès',
+    'T4',
+    'Appartement n°1',
+    'Appartement n°2',
+    'Appartement n°3',
+    'Gamot',
+    'Amsterdam',
   ];
 }
