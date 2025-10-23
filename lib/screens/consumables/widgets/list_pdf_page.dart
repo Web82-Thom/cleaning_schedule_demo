@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cleaning_schedule/controllers/pdf_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
@@ -11,6 +12,8 @@ class ListPdfPage extends StatefulWidget {
 }
 
 class _ListPdfPageState extends State<ListPdfPage> {
+
+  final PdfController pdfController = PdfController();
   List<FileSystemEntity> _files = [];
   bool _loading = true;
   String _title = 'PDFs';
@@ -40,7 +43,7 @@ class _ListPdfPageState extends State<ListPdfPage> {
 
       _files = allFiles.where((f) {
         final name = f.path.split('/').last.toLowerCase();
-        return name.startsWith('conso_${safePrefix}_${safeElement}');
+        return name.startsWith('conso_${safePrefix}_$safeElement');
       }).toList();
     } catch (e) {
       debugPrint('Erreur listage PDFs: $e');
@@ -72,14 +75,17 @@ class _ListPdfPageState extends State<ListPdfPage> {
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
                   onPressed: () async {
-                    try {
-                      await f.delete();
+                    // On vérifie et on caste l'entité en File
+                    if (f is File) {
+                      await pdfController.deletePdfFromCategory(
+                        context: context,
+                        file: f,
+                      );
+                      _loadFiles(); // recharge la liste
+                    } else {
                       ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('PDF supprimé')));
-                      _loadFiles();
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Erreur : $e')));
+                        const SnackBar(content: Text('Erreur : élément non valide')),
+                      );
                     }
                   },
                 ),
