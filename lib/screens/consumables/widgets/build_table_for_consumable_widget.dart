@@ -29,6 +29,7 @@ class BuildTableForConsumableWidget extends StatefulWidget {
 class _BuildTableForConsumableWidgetState extends State<BuildTableForConsumableWidget> {
   List<Map<String, dynamic>> _records = [];
   final PdfController pdfController = PdfController();
+  
 
   @override
   void initState() {
@@ -150,7 +151,8 @@ class _BuildTableForConsumableWidgetState extends State<BuildTableForConsumableW
 
           for (final record in _records) {
             final date = record['date'] ?? '';
-            final produits = record['produits'] ?? [];
+            final List<Map<String, dynamic>> produits =
+    (record['produits'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
             for (final produit in produits) {
               rows.add([
@@ -508,7 +510,7 @@ Future<void> _recordDialog({int? index}) async {
               children: [
                 Expanded(flex: 2, child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
                 Expanded(flex: 3, child: Text('Produit', style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 0, child: Text('Qté', style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(flex: 1, child: Text('Qté', style: TextStyle(fontWeight: FontWeight.bold))),
               ],
             ),
           ),
@@ -516,111 +518,120 @@ Future<void> _recordDialog({int? index}) async {
           // 🔹 LISTE DÉFILANTE
           Expanded(
             child: _records.isEmpty
-                ? const Center(child: Text('Aucun consommable'))
-                : ListView.builder(
-                    itemCount: _records.length,
-                    itemBuilder: (context, index) {
-                      _records[index];
-                      return InkWell(
-                        onDoubleTap: () {
-                          _recordDialog(index: index);
-                        },
-                        onLongPress: () async {
-                          // On rend la fonction asynchrone pour pouvoir "attendre" le dialogue
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Supprimer ce consommable'),
-                              content: const Text('Voulez-vous vraiment supprimer cet élément ?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('Annuler'),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text(
-                                    'Supprimer',
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
+              ? const Center(child: Text('Aucun consommable'))
+              : ListView.builder(
+                  itemCount: _records.length,
+                  itemBuilder: (context, index) {
+                    final record = _records[index];
+                    final List<Map<String, dynamic>> produits =
+                        (record['produits'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
-                          // Si l’utilisateur clique sur "Supprimer"
-                          if (confirm == true) {
-                            setState(() {
-                              _records.removeAt(index);
-                            });
-
-                            await _saveConsumablesToFirestore(action: 'suppression');
-                          }
-                        },
-                        child: Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 2,
-                          child: InkWell(
-                            onDoubleTap: () => _recordDialog(index: index), // Modifier
-                            onLongPress: () async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: const Text('Supprimer cette fiche'),
-                                  content: const Text('Voulez-vous vraiment supprimer cette fiche ?'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx, false),
-                                      child: const Text('Annuler'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx, true),
-                                      child: const Text('Supprimer',
-                                          style: TextStyle(color: Colors.red)),
-                                    ),
-                                  ],
-                                ),
-                              );
-
-                              if (confirm == true) {
-                                setState(() {
-                                  _records.removeAt(index);
-                                });
-                                await _saveConsumablesToFirestore(action: 'suppression');
-                              }
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _records[index]['date'] ?? '',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold, color: Colors.indigo),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  if (_records[index]['produits'] != null)
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        for (final p in _records[index]['produits'])
-                                          Padding(
-                                            padding: const EdgeInsets.symmetric(vertical: 2),
-                                            child: Text('• ${p['quantite']} — ${p['nom']}'),
-                                          ),
-                                      ],
-                                    ),
-                                ],
+                    return InkWell(
+                      onDoubleTap: () => _recordDialog(index: index),
+                      onLongPress: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Supprimer cette fiche'),
+                            content: const Text('Voulez-vous vraiment supprimer cette fiche ?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Annuler'),
                               ),
-                            ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text(
+                                  'Supprimer',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (confirm == true) {
+                          setState(() {
+                            _records.removeAt(index);
+                          });
+                          await _saveConsumablesToFirestore(action: 'suppression');
+                        }
+                      },
+                      child: Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        elevation: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // 🔹 Date
+                              Expanded(
+                                flex: 2,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    record['date'] ?? '',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.indigo,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              // 🔹 Produits
+                              Expanded(
+                                flex: 3,
+                                child: produits.isEmpty
+                                    ? const Text('—', style: TextStyle(color: Colors.grey))
+                                    : Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: produits
+                                            .map(
+                                              (p) => Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(vertical: 2),
+                                                child: Text('• ${p['nom'] ?? ''}'),
+                                              ),
+                                            )
+                                            .toList(),
+                                      ),
+                              ),
+
+                              // 🔹 Quantités
+                              Expanded(
+                                flex: 1,
+                                child: produits.isEmpty
+                                    ? const Text('—',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: Colors.grey))
+                                    : Column(
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: produits
+                                            .map(
+                                              (p) => Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(vertical: 2),
+                                                child: Text(
+                                                  p['quantite']?.toString() ?? '',
+                                                  textAlign: TextAlign.center,
+                                                  style: const TextStyle(
+                                                      fontWeight: FontWeight.w600),
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                      ),
+                              ),
+                            ],
                           ),
                         ),
-
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
+                ),
           ),
         ],
       ),
