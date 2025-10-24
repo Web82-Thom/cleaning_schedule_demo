@@ -223,6 +223,46 @@ class PdfController extends ChangeNotifier {
     }
   }
 
+  /// 🔹 Supprime un fichier PDF local s’il existe
+  Future<void> deletePdf({
+    required BuildContext context,
+    required String fileName,
+  }) async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final filePath = '${dir.path}/$fileName';
+      final file = File(filePath);
+
+      if (await file.exists()) {
+        await file.delete();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('PDF "$fileName" supprimé avec succès ✅'),
+            ),
+          );
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Aucun fichier à supprimer.'),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la suppression : $e'),
+          ),
+        );
+      }
+    }
+  }
+
   /// ______________________________________
   ///|--------Function generaliser----------|
   ///|______________________________________|
