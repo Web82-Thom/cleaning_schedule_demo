@@ -471,34 +471,45 @@ Future<void> _recordDialog({int? index}) async {
             color: Colors.indigo.shade50,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.picture_as_pdf,
-                      color: Colors.indigo, size: 30),
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Appui long pour créer un PDF.')),
-                  ),
-                  onLongPress: () => _generatePdf(context),
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              // Générer PDF
+              IconButton(
+                icon: const Icon(Icons.picture_as_pdf, color: Colors.indigo, size: 30),
+                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Appui long pour créer un PDF.')),
                 ),
-                TextButton(
-                  onPressed: () => Navigator.pushNamed(
-                    context,
-                    widget.routePdfList,
-                    arguments: {
-                      'title': widget.title,
-                      'fileNamePrefix': widget.fileNamePrefix,
-                      'elementName': widget.elementName,
-                    },
-                  ),
-                  child: const Text(
-                    'Liste PDF',
-                    style: TextStyle(color: Colors.indigo),
-                  ),
+                onLongPress: () => _generatePdf(context),
+              ),
+
+              // Partager PDF
+              IconButton(
+                icon: const Icon(Icons.share, color: Colors.green, size: 28),
+                onPressed: () async {
+                  await pdfController.sharePdf(
+                    context: context,
+                    fileNamePrefix: widget.fileNamePrefix,
+                    elementName: widget.elementName,
+                    title: widget.title,
+                  );
+                },
+              ),
+              // Liste PDF
+              TextButton(
+                onPressed: () => Navigator.pushNamed(
+                  context,
+                  widget.routePdfList,
+                  arguments: {
+                    'title': widget.title,
+                    'fileNamePrefix': widget.fileNamePrefix,
+                    'elementName': widget.elementName,
+                  },
                 ),
-              ],
-            ),
+                child: const Text('Liste PDF', style: TextStyle(color: Colors.indigo)),
+              ),
+            ],
+          ),
+
           ),
 
           // 🔹 EN-TÊTE DU TABLEAU

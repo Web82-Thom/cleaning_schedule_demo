@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart';
 
 class PdfController extends ChangeNotifier {
   /// ______________________________________
@@ -52,6 +53,53 @@ class PdfController extends ChangeNotifier {
       }
     }
   }
+ 
+  ///------Partager un pdf---------
+  Future<void> sharePdf({
+  required BuildContext context,
+  required String fileNamePrefix,
+  required String elementName,
+  required String title,
+  }) async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final safePrefix = fileNamePrefix.toLowerCase().replaceAll(' ', '_');
+      final safeElement = elementName.toLowerCase().replaceAll(' ', '_');
+      final filePath = '${dir.path}/conso_${safePrefix}_$safeElement.pdf';
+      final file = File(filePath);
+
+      if (await file.exists()) {
+        final XFile xfile = XFile(filePath);
+        final ShareParams params = ShareParams(
+          files: [xfile],
+          text: 'Consommation : $title - $elementName',
+          subject: 'PDF consommation',
+        );
+
+        final result = await SharePlus.instance.share(params);
+
+        // Tu peux vérifier `result.status` si besoin
+        if (result.status == ShareResultStatus.success && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('PDF partagé avec succès ✅')),
+          );
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Aucun PDF trouvé, créez-le d’abord.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur lors du partage : $e')),
+        );
+      }
+    }
+  }
+ 
   ///___________________________________________________
   ///|------Génère le PDF du planning hebdomadaire------|
   ///|__________________________________________________|
