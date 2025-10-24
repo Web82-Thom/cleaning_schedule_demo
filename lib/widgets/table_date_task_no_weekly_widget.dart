@@ -21,7 +21,7 @@ class _TableDateTaskNoWeeklyWidgetState
       FirebaseFirestore.instance.collection('events');
 
   bool _loading = true;
-  List<Map<String, dynamic>> _pastEvents = [];
+  List<Map<String, dynamic>> _taskEvents = [];
 
   @override
   void initState() {
@@ -31,13 +31,10 @@ class _TableDateTaskNoWeeklyWidgetState
 
   Future<void> _loadEvents() async {
     try {
-      // 🔹 On récupère tous les events sans index ni where
       final snapshot = await eventsRef.get();
 
-      final now = DateTime.now();
-
-      // 🔹 On filtre localement
-      final filtered = snapshot.docs.map((doc) {
+      // 🔹 Récupère uniquement les events de la tâche concernée
+      final allEvents = snapshot.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
         final ts = data['day'] as Timestamp?;
         final date = ts?.toDate();
@@ -48,23 +45,14 @@ class _TableDateTaskNoWeeklyWidgetState
           'isWeeklyTask': data['isWeeklyTask'] ?? true,
           'day': date,
         };
-      }).where((event) {
-        final isNoWeekly = event['isWeeklyTask'] == false;
-        final sameTask = event['task'] == widget.taskName;
-        final date = event['day'];
-        final isPast = date != null &&
-            DateTime(date.year, date.month, date.day)
-                .isBefore(DateTime(now.year, now.month, now.day));
+      }).where((e) => e['task'] == widget.taskName).toList();
 
-        return isNoWeekly && sameTask && isPast;
-      }).toList();
-
-      // 🔹 Tri du plus ancien au plus récent
-      filtered.sort((a, b) =>
+      // 🔹 Tri chronologique (plus ancien -> plus récent)
+      allEvents.sort((a, b) =>
           (a['day'] as DateTime).compareTo(b['day'] as DateTime));
 
       setState(() {
-        _pastEvents = filtered;
+        _taskEvents = allEvents;
         _loading = false;
       });
     } catch (e) {
@@ -75,43 +63,70 @@ class _TableDateTaskNoWeeklyWidgetState
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.taskName),
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.white,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _pastEvents.isEmpty
+          : _taskEvents.isEmpty
               ? const Center(
                   child: Text(
-                    'Aucun événement passé pour cette tâche.',
+                    'Aucun événement pour cette tâche.',
                     style: TextStyle(fontSize: 16),
                   ),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(8),
-                  itemCount: _pastEvents.length,
+                  itemCount: _taskEvents.length,
                   itemBuilder: (context, index) {
-                    final event = _pastEvents[index];
+                    final event = _taskEvents[index];
                     final date = event['day'] as DateTime?;
                     final formattedDate = date != null
                         ? DateFormat('dd MMM yyyy', 'fr_FR').format(date)
                         : '—';
 
-                    // 🔹 Calcul du nombre de jours écoulés
-                    final diffDays = date != null
-                        ? DateTime.now().difference(date).inDays
-                        : 0;
+                    bool late = false;
+                    bool reprogrammed = false;
 
-                    final late = diffDays > 10; // ⚠️ Si + de 10 jours
+                    if (date != null) {
+                      final diffDays = now.difference(date).inDays;
+
+                      // 🔹 Si + de 10 jours → rouge
+                      if (diffDays > 10 && date.isBefore(now)) {
+                        late = true;
+                      }
+
+                      // 🔹 Si une autre date future existe → gris
+                      reprogrammed = _taskEvents.any((other) {
+                        final d2 = other['day'] as DateTime?;
+                        return d2 != null && d2.isAfter(now);
+                      });
+                    }
+
+                    // 🔹 Choix de la couleur
+                    Color color;
+                    if (reprogrammed) {
+                      color = Colors.grey;
+                    } else if (late) {
+                      color = Colors.red;
+                    } else {
+                      color = Colors.black;
+                    }
 
                     return Container(
                       padding: const EdgeInsets.symmetric(
                           vertical: 10, horizontal: 8),
                       decoration: BoxDecoration(
                         color: late
-                            ? Colors.red.withValues(alpha: 0.1)
-                            : Colors.transparent,
+                            ? Colors.red.withValues(alpha: 0.08)
+                            : reprogrammed
+                                ? Colors.grey.withValues(alpha: 0.08)
+                                : Colors.transparent,
                         border: Border(
                           bottom: BorderSide(color: Colors.grey.shade300),
                         ),
@@ -119,12 +134,12 @@ class _TableDateTaskNoWeeklyWidgetState
                       child: Row(
                         children: [
                           Expanded(
-                            flex: 1,
+                            flex: 2,
                             child: Text(
                               formattedDate,
                               style: TextStyle(
                                 fontSize: 14,
-                                color: late ? Colors.red : Colors.black,
+                                color: color,
                                 fontWeight:
                                     late ? FontWeight.bold : FontWeight.normal,
                               ),
@@ -136,7 +151,7 @@ class _TableDateTaskNoWeeklyWidgetState
                               event['place'] ?? '',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: late ? Colors.red : Colors.black87,
+                                color: color,
                               ),
                             ),
                           ),
