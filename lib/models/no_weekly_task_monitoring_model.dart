@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class EventModel {
+class NoWeeklyTaskMonitoringModel {
   final String id;
   final DateTime day;
   final String timeSlot;
@@ -13,7 +13,7 @@ class EventModel {
   final bool isWeeklyTask;
   final bool isReprogrammed;
 
-  EventModel({
+  NoWeeklyTaskMonitoringModel({
     required this.id,
     required this.day,
     required this.timeSlot,
@@ -22,11 +22,12 @@ class EventModel {
     required this.task,
     required this.workerIds,
     required this.createdAt,
-    required this.weekNumber, 
+    required this.weekNumber,
     required this.isWeeklyTask,
-    required this.isReprogrammed, 
+    required this.isReprogrammed,
   });
 
+  /// 🔹 Conversion vers Firestore
   Map<String, dynamic> toFirestore() => {
         'day': Timestamp.fromDate(day),
         'timeSlot': timeSlot,
@@ -34,25 +35,31 @@ class EventModel {
         'subPlace': subPlace,
         'task': task,
         'workerIds': workerIds,
-        'createdAt': createdAt,
+        'createdAt': createdAt == Timestamp.now()
+            ? FieldValue.serverTimestamp()
+            : createdAt,
         'weekNumber': weekNumber,
         'isWeeklyTask': isWeeklyTask,
         'isReprogrammed': isReprogrammed,
-      };
+      }..removeWhere((key, value) => value == null);
 
-  factory EventModel.fromFirestore(String id, Map<String, dynamic> data) {
-    return EventModel(
+  /// 🔹 Restauration depuis Firestore
+  factory NoWeeklyTaskMonitoringModel.fromFirestore(
+      String id, Map<String, dynamic> data) {
+    final tsDay = data['day'] as Timestamp?;
+    final tsCreated = data['createdAt'] as Timestamp?;
+    return NoWeeklyTaskMonitoringModel(
       id: id,
-      day: (data['day'] as Timestamp).toDate(),
+      day: tsDay?.toDate() ?? DateTime.now(),
       timeSlot: data['timeSlot'] ?? '',
       place: data['place'] ?? '',
       subPlace: data['subPlace'],
       task: data['task'] ?? '',
       workerIds: List<String>.from(data['workerIds'] ?? []),
-      createdAt: data['createdAt'] ?? Timestamp.now(),
+      createdAt: tsCreated ?? Timestamp.now(),
       weekNumber: data['weekNumber'] ?? 0,
-      isWeeklyTask : data['isWeeklyTask'] ?? false,
-      isReprogrammed : data['isReprogrammed'] ?? false,
+      isWeeklyTask: data['isWeeklyTask'] ?? false,
+      isReprogrammed: data['isReprogrammed'] ?? false,
     );
   }
 }

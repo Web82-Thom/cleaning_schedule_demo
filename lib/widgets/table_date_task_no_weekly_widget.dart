@@ -17,145 +17,104 @@ class TableDateTaskNoWeeklyWidget extends StatefulWidget {
 
 class _TableDateTaskNoWeeklyWidgetState
     extends State<TableDateTaskNoWeeklyWidget> {
-  final CollectionReference eventsRef =
-      FirebaseFirestore.instance.collection('events');
+  final CollectionReference monitoringRef =
+      FirebaseFirestore.instance.collection('noWeeklyTasksMonitoring');
 
   bool _loading = true;
-  List<Map<String, dynamic>> _taskEvents = [];
+  List<Map<String, dynamic>> _pastEvents = [];
 
   @override
   void initState() {
     super.initState();
-    _loadEvents();
+    _loadPastNoWeeklyForTask();
   }
 
-  Future<void> _loadEvents() async {
+  Future<void> _loadPastNoWeeklyForTask() async {
     try {
-      final snapshot = await eventsRef.get();
+      final snap = await monitoringRef
+          .where('task', isEqualTo: widget.taskName)
+          .get();
 
-      // 🔹 Récupère uniquement les events de la tâche concernée
-      final allEvents = snapshot.docs.map((doc) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+
+      final list = snap.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
         final ts = data['day'] as Timestamp?;
         final date = ts?.toDate();
 
         return {
-          'task': data['task'] ?? '',
-          'place': data['place'] ?? '',
-          'isWeeklyTask': data['isWeeklyTask'] ?? true,
+          'task': (data['task'] ?? '').toString(),
+          'place': (data['place'] ?? '').toString(),
+          'isWeeklyTask': (data['isWeeklyTask'] ?? false) as bool,
           'day': date,
         };
-      }).where((e) => e['task'] == widget.taskName).toList();
+      })
+      // 👉 Uniquement les NON hebdo et déjà passées
+      .where((e) {
+        final date = e['day'] as DateTime?;
+        if (date == null) return false;
+        final d0 = DateTime(date.year, date.month, date.day);
+        return (e['isWeeklyTask'] == false) && d0.isBefore(today);
+      }).toList();
 
-      // 🔹 Tri chronologique (plus ancien -> plus récent)
-      allEvents.sort((a, b) =>
+      // Tri du plus ancien au plus récent
+      list.sort((a, b) =>
           (a['day'] as DateTime).compareTo(b['day'] as DateTime));
 
       setState(() {
-        _taskEvents = allEvents;
+        _pastEvents = list;
         _loading = false;
       });
     } catch (e) {
-      debugPrint('Erreur chargement events: $e');
+      debugPrint('Erreur chargement noWeeklyTasksMonitoring: $e');
       setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.taskName),
+        title: Text('Suivi — ${widget.taskName}'),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _taskEvents.isEmpty
+          : _pastEvents.isEmpty
               ? const Center(
                   child: Text(
-                    'Aucun événement pour cette tâche.',
+                    'Aucun historique pour cette tâche.',
                     style: TextStyle(fontSize: 16),
                   ),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(8),
-                  itemCount: _taskEvents.length,
+                  itemCount: _pastEvents.length,
                   itemBuilder: (context, index) {
-                    final event = _taskEvents[index];
-                    final date = event['day'] as DateTime?;
+                    final e = _pastEvents[index];
+                    final date = e['day'] as DateTime?;
                     final formattedDate = date != null
                         ? DateFormat('dd MMM yyyy', 'fr_FR').format(date)
                         : '—';
 
-                    bool late = false;
-                    bool reprogrammed = false;
-
-                    if (date != null) {
-                      final diffDays = now.difference(date).inDays;
-
-                      // 🔹 Si + de 10 jours → rouge
-                      if (diffDays > 10 && date.isBefore(now)) {
-                        late = true;
-                      }
-
-                      // 🔹 Si une autre date future existe → gris
-                      reprogrammed = _taskEvents.any((other) {
-                        final d2 = other['day'] as DateTime?;
-                        return d2 != null && d2.isAfter(now);
-                      });
-                    }
-
-                    // 🔹 Choix de la couleur
-                    Color color;
-                    if (reprogrammed) {
-                      color = Colors.grey;
-                    } else if (late) {
-                      color = Colors.red;
-                    } else {
-                      color = Colors.black;
-                    }
-
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 10, horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: late
-                            ? Colors.red.withValues(alpha: 0.08)
-                            : reprogrammed
-                                ? Colors.grey.withValues(alpha: 0.08)
-                                : Colors.transparent,
-                        border: Border(
-                          bottom: BorderSide(color: Colors.grey.shade300),
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                          vertical: 6, horizontal: 8),
+                      elevation: 1,
+                      child: ListTile(
+                        title: Text(
+                          e['place'] ?? '',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              formattedDate,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: color,
-                                fontWeight:
-                                    late ? FontWeight.bold : FontWeight.normal,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 3,
-                            child: Text(
-                              event['place'] ?? '',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: color,
-                              ),
-                            ),
-                          ),
-                        ],
+                        subtitle: Text(
+                          formattedDate,
+                          style: const TextStyle(fontSize: 14),
+                        ),
                       ),
                     );
                   },

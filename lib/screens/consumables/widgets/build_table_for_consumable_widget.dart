@@ -219,6 +219,7 @@ class _BuildTableForConsumableWidgetState extends State<BuildTableForConsumableW
 
   /// 🔹 CHARGEMENT DES DONNÉES
   Future<void> _loadConsumablesFirestore() async {
+  try {
     final doc = await FirebaseFirestore.instance
         .collection('consumables')
         .doc('${widget.fileNamePrefix}_${widget.elementName}')
@@ -226,17 +227,28 @@ class _BuildTableForConsumableWidgetState extends State<BuildTableForConsumableW
 
     if (doc.exists && doc.data()?['records'] != null) {
       final records = List<Map<String, dynamic>>.from(doc.data()!['records']);
+
       setState(() {
-        _records = records
-            .map((r) => {
-                  'date': r['date'] ?? '',
-                  'produit': r['produit'] ?? '',
-                  'quantite': r['quantite']?.toString() ?? '',
-                })
-            .toList();
+        _records = records.map((r) {
+          final produitsList = (r['produits'] as List?)
+              ?.map((p) => {
+                    'nom': p['nom'] ?? '',
+                    'quantite': p['quantite'] ?? '',
+                  })
+              .toList();
+
+          return {
+            'date': r['date'] ?? '',
+            'produits': produitsList ?? [],
+          };
+        }).toList();
       });
     }
+  } catch (e) {
+    debugPrint('Erreur chargement consommables: $e');
   }
+}
+
 
   /// 🔹 Sauvegarde améliorée avec détection du type d’action
 Future<void> _saveConsumablesToFirestore({
@@ -272,184 +284,190 @@ Future<void> _saveConsumablesToFirestore({
 
 
   /// 🔹 DIALOGUE D'AJOUT / MODIF
-Future<void> _recordDialog({int? index}) async {
-  final dateController = TextEditingController(
-    text: index != null ? _records[index]['date'] : '',
-  );
+  Future<void> _recordDialog({int? index}) async {
+    final dateController = TextEditingController(
+      text: index != null ? _records[index]['date'] : '',
+    );
 
-  // 🔹 On récupère la liste des produits existants (sinon on crée une liste vide)
-  List<Map<String, String>> produits = [];
-  if (index != null && _records[index]['produits'] != null) {
-    produits = List<Map<String, String>>.from(_records[index]['produits']);
+    // 🔹 On récupère la liste des produits existants (sinon on crée une liste vide)
+    List<Map<String, String>> produits = [];
+    if (index != null && _records[index]['produits'] != null) {
+    produits = (_records[index]['produits'] as List)
+        .map((p) => {
+              'nom': (p['nom'] ?? '').toString(),
+              'quantite': (p['quantite'] ?? '').toString(),
+            })
+        .toList();
   } else {
-    produits.add({'nom': '', 'quantite': ''});
+    produits = [{'nom': '', 'quantite': ''}];
   }
 
-  await showDialog(
-    context: context,
-    builder: (ctx) {
-      return StatefulBuilder(
-        builder: (context, setStateDialog) {
-          return AlertDialog(
-            title: Text(index == null
-                ? 'Ajouter un consommable'
-                : 'Modifier le consommable'),
-            content: SingleChildScrollView(
-              child: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.9, // 🔹 plein écran
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 🔹 Date
-                    TextField(
-                      controller: dateController,
-                      readOnly: true,
-                      decoration: const InputDecoration(labelText: 'Date'),
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: ctx,
-                          initialDate: DateTime.now(),
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(2100),
-                        );
-                        if (picked != null) {
-                          dateController.text =
-                              '${picked.day.toString().padLeft(2, '0')}/'
-                              '${picked.month.toString().padLeft(2, '0')}/'
-                              '${picked.year}';
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 12),
 
-                    // 🔹 Liste dynamique produits + quantités
-                    Column(
-                      children: [
-                        for (int i = 0; i < produits.length; i++)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  flex: 3,
-                                  child: TextField(
-                                    decoration: const InputDecoration(
-                                        labelText: 'Produit'),
-                                    onChanged: (v) =>
-                                        produits[i]['nom'] = v.trim(),
-                                    controller: TextEditingController(
-                                        text: produits[i]['nom']),
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: Text(index == null
+                  ? 'Ajouter un consommable'
+                  : 'Modifier le consommable'),
+              content: SingleChildScrollView(
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.9, // 🔹 plein écran
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 🔹 Date
+                      TextField(
+                        controller: dateController,
+                        readOnly: true,
+                        decoration: const InputDecoration(labelText: 'Date'),
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: ctx,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            dateController.text =
+                                '${picked.day.toString().padLeft(2, '0')}/'
+                                '${picked.month.toString().padLeft(2, '0')}/'
+                                '${picked.year}';
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // 🔹 Liste dynamique produits + quantités
+                      Column(
+                        children: [
+                          for (int i = 0; i < produits.length; i++)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: TextField(
+                                      decoration: const InputDecoration(
+                                          labelText: 'Produit'),
+                                      onChanged: (v) =>
+                                          produits[i]['nom'] = v.trim(),
+                                      controller: TextEditingController(
+                                          text: produits[i]['nom']),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  flex: 2,
-                                  child: TextField(
-                                    decoration: const InputDecoration(
-                                        labelText: 'Quantité'),
-                                    keyboardType: TextInputType.number,
-                                    onChanged: (v) =>
-                                        produits[i]['quantite'] = v.trim(),
-                                    controller: TextEditingController(
-                                        text: produits[i]['quantite']),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    flex: 2,
+                                    child: TextField(
+                                      decoration: const InputDecoration(
+                                          labelText: 'Quantité'),
+                                      keyboardType: TextInputType.number,
+                                      onChanged: (v) =>
+                                          produits[i]['quantite'] = v.trim(),
+                                      controller: TextEditingController(
+                                          text: produits[i]['quantite']),
+                                    ),
                                   ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.remove_circle,
-                                      color: Colors.red),
-                                  onPressed: () {
-                                    setStateDialog(() {
-                                      produits.removeAt(i);
-                                    });
-                                  },
-                                ),
-                              ],
+                                  IconButton(
+                                    icon: const Icon(Icons.remove_circle,
+                                        color: Colors.red),
+                                    onPressed: () {
+                                      setStateDialog(() {
+                                        produits.removeAt(i);
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton.icon(
-                            onPressed: () {
-                              setStateDialog(() {
-                                produits.add({'nom': '', 'quantite': ''});
-                              });
-                            },
-                            icon: const Icon(Icons.add, color: Colors.indigo),
-                            label: const Text('Ajouter un produit'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              if (index != null)
-                TextButton(
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (c2) => AlertDialog(
-                        title: const Text('Supprimer cette fiche ?'),
-                        content: const Text(
-                            'Voulez-vous vraiment supprimer ce consommable ?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(c2, false),
-                            child: const Text('Annuler'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(c2, true),
-                            child: const Text('Supprimer',
-                                style: TextStyle(color: Colors.red)),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: () {
+                                setStateDialog(() {
+                                  produits.add({'nom': '', 'quantite': ''});
+                                });
+                              },
+                              icon: const Icon(Icons.add, color: Colors.indigo),
+                              label: const Text('Ajouter un produit'),
+                            ),
                           ),
                         ],
                       ),
-                    );
-                    if (confirm == true) {
-                      Navigator.pop(ctx);
-                      setState(() {
-                        _records.removeAt(index);
-                      });
-                      await _saveConsumablesToFirestore(action: 'suppression');
-                    }
-                  },
-                  child: const Text('Supprimer',
-                      style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
                 ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Annuler'),
               ),
-              TextButton(
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  setState(() {
-                    final data = {
-                      'date': dateController.text,
-                      'produits': produits,
-                    };
-                    if (index != null) {
-                      _records[index] = data;
-                    } else {
-                      _records.add(data);
-                    }
-                  });
-                  await _saveConsumablesToFirestore(
-                    action: index != null ? 'modif' : 'ajout',
-                  );
-                },
-                child: const Text('Valider'),
-              ),
-            ],
-          );
-        },
-      );
-    },
-  );
-}
+              actions: [
+                if (index != null)
+                  TextButton(
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (c2) => AlertDialog(
+                          title: const Text('Supprimer cette fiche ?'),
+                          content: const Text(
+                              'Voulez-vous vraiment supprimer ce consommable ?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(c2, false),
+                              child: const Text('Annuler'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(c2, true),
+                              child: const Text('Supprimer',
+                                  style: TextStyle(color: Colors.red)),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        Navigator.pop(ctx);
+                        setState(() {
+                          _records.removeAt(index);
+                        });
+                        await _saveConsumablesToFirestore(action: 'suppression');
+                      }
+                    },
+                    child: const Text('Supprimer',
+                        style: TextStyle(color: Colors.red)),
+                  ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Annuler'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    setState(() {
+                      final data = {
+                        'date': dateController.text,
+                        'produits': produits,
+                      };
+                      if (index != null) {
+                        _records[index] = data;
+                      } else {
+                        _records.add(data);
+                      }
+                    });
+                    await _saveConsumablesToFirestore(
+                      action: index != null ? 'modif' : 'ajout',
+                    );
+                  },
+                  child: const Text('Valider'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
