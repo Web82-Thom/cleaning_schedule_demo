@@ -326,36 +326,46 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // ---------- HEADER : jours + dates ----------
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          const SizedBox(width: 40),
+                          Container(
+                            width: 70,
+                            child: Image.asset('assets/icon/app_icon.png', width: 50, height: 50,),
+                          ), // espace pour la colonne MATIN/APRÈS-MIDI
                           ..._weekDays.map(
                             (d) {
                               final dayName = DateFormat('EEEE', 'fr_FR').format(d).toUpperCase();
-                              final dayNumber = DateFormat('d').format(d); // ex: "21"
+                              final dayNumber = DateFormat('d').format(d);
 
                               return Container(
-                                width: 190,
+                                width: 180, // même largeur que les colonnes
+                                height: 50,
+                                margin: const EdgeInsets.symmetric(horizontal: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color.fromARGB(34, 255, 82, 82),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
                                 alignment: Alignment.center,
-                                padding: const EdgeInsets.all(8),
                                 child: RichText(
                                   textAlign: TextAlign.center,
                                   text: TextSpan(
                                     children: [
                                       TextSpan(
-                                        text: '$dayName - ',
+                                        text: '$dayName ',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           color: Colors.black,
-                                          fontSize: 20
+                                          fontSize: 16,
                                         ),
                                       ),
                                       TextSpan(
                                         text: dayNumber,
                                         style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
+                                          fontWeight: FontWeight.bold,
                                           color: Colors.indigo,
-                                          fontSize: 20,
+                                          fontSize: 16,
                                         ),
                                       ),
                                     ],
@@ -366,68 +376,63 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 4),
+
+                      // ---------- TABLE MATIN / APRÈS-MIDI ----------
                       for (var slot in ['morning', 'afternoon'])
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: 70,
-                                height: 600,
-                                color: Colors.grey.shade300,
-                                child: Center(
-                                  child: Transform.rotate(
-                                    angle: -3.14 / 2,
-                                    child: FittedBox(
-                                      fit: BoxFit.contain,
-                                      child: Text(
-                                        slot == 'morning'
-                                            ? 'MATIN'
-                                            : 'APRÈS-MIDI',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                        ),
-                                      ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 70,
+                              height: 600,
+                              decoration: BoxDecoration(
+                                color: const Color.fromARGB(34, 255, 82, 82),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Center(
+                                child: Transform.rotate(
+                                  angle: -3.14 / 2,
+                                  child: Text(
+                                    slot == 'morning' ? 'MATIN' : 'APRÈS-MIDI',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
                                     ),
                                   ),
                                 ),
                               ),
-                              ..._weekDays.map((day) {
-                                final key = '${DateFormat('yyyy-MM-dd').format(day)}_$slot';
-                                final cellEvents = grouped[key] ?? [];
+                            ),
+                            ..._weekDays.map((day) {
+                              final key = '${DateFormat('yyyy-MM-dd').format(day)}_$slot';
+                              final cellEvents = grouped[key] ?? [];
 
-                                return Container(
-                                  width: 180,
-                                  height: 600,
-                                  margin: const EdgeInsets.all(2),
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: slot == 'morning'
-                                    ? Colors.blue.shade100
-                                    : Colors.orange.shade100,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: cellEvents.isEmpty ?
-                                  const Center(
-                                    child: Text(
-                                      '—',
-                                      style: TextStyle(
-                                        color: Colors.black54,
-                                      ),
-                                    ),
-                                  ) :
-                                  buildScrollableCell(cellEvents),
-                                );
-                              }),
-                            ],
-                          ),
-                        ],
-                      ),
+                              return Container(
+                                width: 180, // identique à la largeur du header
+                                height: 600,
+                                margin: const EdgeInsets.all(2),
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: slot == 'morning'
+                                      ? Colors.blue.shade100
+                                      : Colors.orange.shade100,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: cellEvents.isEmpty
+                                    ? const Center(
+                                        child: Text(
+                                          '—',
+                                          style: TextStyle(color: Colors.black54),
+                                        ),
+                                      )
+                                    : buildScrollableCell(cellEvents),
+                              );
+                            }),
+                          ],
+                        ),
                     ],
-                  ),
+                  )
+
                 ),
               );
             },
