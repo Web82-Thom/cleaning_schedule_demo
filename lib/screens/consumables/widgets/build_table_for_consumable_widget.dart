@@ -342,8 +342,7 @@ Future<void> _saveConsumablesToFirestore({
                         },
                       ),
                       const SizedBox(height: 12),
-
-                      // 🔹 Liste dynamique produits + quantités
+                      // 🔹 Liste dynamique "Lieu" ou "Produit" + quantités
                       Column(
                         children: [
                           for (int i = 0; i < produits.length; i++)
@@ -354,30 +353,27 @@ Future<void> _saveConsumablesToFirestore({
                                   Expanded(
                                     flex: 3,
                                     child: TextField(
-                                      decoration: const InputDecoration(
-                                          labelText: 'Produit'),
-                                      onChanged: (v) =>
-                                          produits[i]['nom'] = v.trim(),
-                                      controller: TextEditingController(
-                                          text: produits[i]['nom']),
+                                      decoration: InputDecoration(
+                                        labelText: widget.title == 'Produit' ? 'Lieu' : 'Produit',
+                                      ),
+                                      onChanged: (v) => produits[i]['nom'] = v.trim(),
+                                      controller:
+                                          TextEditingController(text: produits[i]['nom']),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     flex: 2,
                                     child: TextField(
-                                      decoration: const InputDecoration(
-                                          labelText: 'Quantité'),
+                                      decoration: const InputDecoration(labelText: 'Quantité'),
                                       keyboardType: TextInputType.number,
-                                      onChanged: (v) =>
-                                          produits[i]['quantite'] = v.trim(),
-                                      controller: TextEditingController(
-                                          text: produits[i]['quantite']),
+                                      onChanged: (v) => produits[i]['quantite'] = v.trim(),
+                                      controller:
+                                          TextEditingController(text: produits[i]['quantite']),
                                     ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.remove_circle,
-                                        color: Colors.red),
+                                    icon: const Icon(Icons.remove_circle, color: Colors.red),
                                     onPressed: () {
                                       setStateDialog(() {
                                         produits.removeAt(i);
@@ -397,7 +393,11 @@ Future<void> _saveConsumablesToFirestore({
                                 });
                               },
                               icon: const Icon(Icons.add, color: Colors.indigo),
-                              label: const Text('Ajouter un produit'),
+                              label: Text(
+                                widget.title == 'Produit'
+                                    ? 'Ajouter un lieu'
+                                    : 'Ajouter un produit',
+                              ),
                             ),
                           ),
                         ],
@@ -423,8 +423,9 @@ Future<void> _saveConsumablesToFirestore({
                             ),
                             TextButton(
                               onPressed: () => Navigator.pop(c2, true),
-                              child: const Text('Supprimer',
-                                  style: TextStyle(color: Colors.red)),
+                              child: const Text(
+                                'Supprimer',
+                                style: TextStyle(color: Colors.red)),
                             ),
                           ],
                         ),
