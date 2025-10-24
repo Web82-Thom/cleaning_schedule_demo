@@ -12,7 +12,7 @@ class ViewTasksNoWeeklyPage extends StatelessWidget {
     final PdfController pdfController = PdfController();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Liste des prestations effectuées', style:TextStyle(fontSize: 14, fontWeight: FontWeight.bold),)),
+      appBar: AppBar(title: const Text('Liste des prestations effectuées', style:TextStyle(fontSize: 16, fontWeight: FontWeight.bold),)),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(8.0),
@@ -23,7 +23,7 @@ class ViewTasksNoWeeklyPage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.picture_as_pdf, color: Colors.red, size: 30),
+                    icon: const Icon(Icons.picture_as_pdf, color: Colors.red, size: 25),
                     tooltip: 'Exporter en PDF',
                     onPressed: (){},
                     onLongPress: () {
@@ -31,17 +31,27 @@ class ViewTasksNoWeeklyPage extends StatelessWidget {
                     },
                   ),
                   IconButton(
-                    icon: const Icon(Icons.share, color: Colors.indigo, size: 30),
+                    icon: const Icon(Icons.share, color: Colors.indigo, size: 25),
                     tooltip: 'Partager',
                     onPressed: () {
                       pdfController.shareReportPdf(context: context);
                     },
                   ),
                   IconButton(
-                    icon: const Icon(Icons.remove_red_eye, color: Colors.green, size: 30),
+                    icon: const Icon(Icons.remove_red_eye, color: Colors.green, size: 25),
                     tooltip: 'Voir',
                     onPressed: () {
                       pdfController.openExistingPdf(context: context, fileName: 'rapport_prestations_non_hebdo.pdf');
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_forever, color: Colors.green, size: 25),
+                    tooltip: 'Supprimer le PDF',
+                    onPressed: () async {
+                      await pdfController.deletePdf(
+                        context: context,
+                        fileName: 'rapport_prestations_non_hebdo.pdf',
+                      );
                     },
                   ),
                 ],
