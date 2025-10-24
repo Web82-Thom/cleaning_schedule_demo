@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -8,6 +10,219 @@ import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
 
 class PdfController extends ChangeNotifier {
+  /// ______________________________________
+  ///|--------Function generaliser----------|
+  ///|______________________________________|
+  /// 🔹 Génère un PDF regroupant toutes les prestations non hebdomadaires
+  Future<void> generateFullReport(context) async {
+    try {
+      final pdf = pw.Document();
+      final now = DateTime.now();
+      final formattedDate =
+          DateFormat('dd MMM yyyy', 'fr_FR').format(now);
+
+      // 🔹 Titre principal
+      final titleStyle = pw.TextStyle(
+        fontSize: 20,
+        fontWeight: pw.FontWeight.bold,
+        color: PdfColors.indigo,
+      );
+
+      // 🔹 Charger logo (facultatif)
+      final logoData =
+          await rootBundle.load('assets/icon/app_icon.png');
+      final logo = pw.MemoryImage(logoData.buffer.asUint8List());
+
+      // 🔹 PAGE DE GARDE
+      pdf.addPage(
+        pw.Page(
+          build: (context) => pw.Center(
+            child: pw.Column(
+              mainAxisAlignment: pw.MainAxisAlignment.center,
+              children: [
+                pw.Image(logo, width: 100, height: 100),
+                pw.SizedBox(height: 20),
+                pw.Text('Rapport complet des prestations effectuées',
+                    style: titleStyle),
+                pw.SizedBox(height: 10),
+                pw.Text(
+                  'Généré le $formattedDate',
+                  style: const pw.TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // 🔹 Récupération des données Firestore
+      final snap = await FirebaseFirestore.instance
+          .collection('noWeeklyTasksMonitoring')
+          .get();
+
+      if (snap.docs.isEmpty) {
+        pdf.addPage(
+          pw.Page(
+            build: (context) => pw.Center(
+              child: pw.Text(
+                'Aucune prestation trouvée.',
+                style: const pw.TextStyle(fontSize: 16),
+              ),
+            ),
+          ),
+        );
+      } else {
+        // 🔹 Groupement par tâche
+        final Map<String, List<Map<String, dynamic>>> grouped = {};
+
+        for (final doc in snap.docs) {
+          final data = doc.data();
+          final task = (data['task'] ?? 'Autre').toString();
+          final place = (data['place'] ?? '—').toString();
+          final ts = data['day'] as Timestamp?;
+          final date = ts?.toDate();
+
+          grouped.putIfAbsent(task, () => []);
+          grouped[task]!.add({
+            'place': place,
+            'day': date != null
+                ? DateFormat('dd MMM yyyy', 'fr_FR').format(date)
+                : '—',
+          });
+        }
+
+        // 🔹 Tri alphabétique des tâches
+        final sortedKeys = grouped.keys.toList()..sort();
+
+        pdf.addPage(
+          pw.MultiPage(
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(24),
+            header: (context) => pw.Container(
+              alignment: pw.Alignment.centerLeft,
+              child: pw.Text('Liste des prestations effectuées',
+                  style: pw.TextStyle(
+                    color: PdfColors.indigo,
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 14,
+                  )),
+            ),
+            footer: (context) => pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Text(
+                'Page ${context.pageNumber}/${context.pagesCount}',
+                style:
+                    const pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+              ),
+            ),
+            build: (context) => [
+              for (final task in sortedKeys) ...[
+                pw.SizedBox(height: 10),
+                pw.Text(
+                  '• $task',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.indigo900,
+                  ),
+                ),
+                pw.SizedBox(height: 6),
+                pw.Table.fromTextArray(
+                  headers: ['Lieu', 'Date'],
+                  headerStyle: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.white,
+                  ),
+                  headerDecoration:
+                      const pw.BoxDecoration(color: PdfColors.indigo),
+                  cellAlignment: pw.Alignment.centerLeft,
+                  cellPadding:
+                      const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+                  data: grouped[task]!
+                      .map((e) => [e['place'], e['day']])
+                      .toList(),
+                ),
+                pw.Divider(),
+              ],
+            ],
+          ),
+        );
+      }
+
+      // 🔹 Sauvegarde du PDF
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/rapport_prestations_non_hebdo.pdf');
+      await file.writeAsBytes(await pdf.save());
+
+      // 🔹 Ouvrir le PDF
+      await OpenFilex.open(file.path);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Rapport PDF généré avec succès'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur génération PDF : $e'),
+          ),
+        );
+      }
+    }
+  }
+  
+  /// 🔹 Partage le rapport PDF complet des tâches non hebdomadaires
+  Future<void> shareReportPdf({
+    required BuildContext context,
+  }) async {
+    try {
+      // 📂 Répertoire local de stockage
+      final dir = await getApplicationDocumentsDirectory();
+      const fileName = 'rapport_prestations_non_hebdo.pdf';
+      final filePath = '${dir.path}/$fileName';
+      final file = File(filePath);
+
+      // 🔎 Vérifie si le fichier existe
+      if (await file.exists()) {
+        final XFile xfile = XFile(filePath);
+
+        final ShareParams params = ShareParams(
+          files: [xfile],
+          text:
+              '📄 Rapport des prestations non hebdomadaires généré avec Cleaning Schedule.',
+          subject: 'Rapport PDF — Prestations effectuées',
+        );
+
+        final result = await SharePlus.instance.share(params);
+
+        // ✅ Confirmation visuelle
+        if (result.status == ShareResultStatus.success && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('PDF partagé avec succès ✅')),
+          );
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Aucun rapport trouvé, veuillez le générer d’abord.'),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur lors du partage : $e')),
+        );
+      }
+    }
+  }
+
   /// ______________________________________
   ///|--------Function generaliser----------|
   ///|______________________________________|
@@ -100,6 +315,34 @@ class PdfController extends ChangeNotifier {
     }
   }
  
+ /// 🔹 Ouvre un PDF existant dans le visualiseur natif
+  Future<void> openExistingPdf({
+    required BuildContext context,
+    required String fileName,
+  }) async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final filePath = '${dir.path}/$fileName';
+      final file = File(filePath);
+
+      if (await file.exists()) {
+        await OpenFilex.open(file.path);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Aucun PDF trouvé : $fileName')),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur lors de l’ouverture : $e')),
+        );
+      }
+    }
+  }
+
   ///___________________________________________________
   ///|------Génère le PDF du planning hebdomadaire------|
   ///|__________________________________________________|
@@ -363,7 +606,6 @@ class PdfController extends ChangeNotifier {
   //____________________________________________________ 
   //|   ---------------CARS------------------------     |
   //|___________________________________________________|
-  /// Génère un PDF pour un véhicule
   /// Génère un PDF clair et structuré pour un véhicule
   Future<void> generateListCarByNamePdf(
     String carName,
