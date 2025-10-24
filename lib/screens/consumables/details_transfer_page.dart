@@ -13,6 +13,7 @@ class DetailsTransferPage extends StatelessWidget {
       fileNamePrefix: 'Transferts',
       elementName: transfer,
       routePdfList: '/listPdfTransfer',
+      headerTitle: 'Produits',
     );
   }
 }

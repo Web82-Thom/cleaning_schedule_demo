@@ -3,6 +3,7 @@ import 'package:cleaning_schedule/controllers/pdf_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -13,6 +14,7 @@ class BuildTableForConsumableWidget extends StatefulWidget {
   final String fileNamePrefix;  // Ex: "villa", "foyerDeVie"
   final String elementName;     // Ex: "T5", "Caisse"
   final String routePdfList;    // Route vers la liste PDF correspondante
+  final String headerTitle;     // Change ne nom Lieu(x), Produits
 
   const BuildTableForConsumableWidget({
     super.key,
@@ -20,6 +22,7 @@ class BuildTableForConsumableWidget extends StatefulWidget {
     required this.fileNamePrefix,
     required this.elementName,
     required this.routePdfList,
+    required this.headerTitle,
   });
 
   @override
@@ -535,10 +538,10 @@ Future<void> _saveConsumablesToFirestore({
             color: Colors.indigo.shade100,
             padding:
                 const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: const Row(
+            child: Row(
               children: [
                 Expanded(flex: 2, child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 3, child: Text('Produit', style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(flex: 3, child: Text(widget.headerTitle, style: TextStyle(fontWeight: FontWeight.bold))),
                 Expanded(flex: 1, child: Text('Qté', style: TextStyle(fontWeight: FontWeight.bold))),
               ],
             ),
@@ -554,6 +557,18 @@ Future<void> _saveConsumablesToFirestore({
                     final record = _records[index];
                     final List<Map<String, dynamic>> produits =
                         (record['produits'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+                        final dateStr = record['date'];
+String formattedDate = dateStr ?? '';
+
+if (dateStr != null && dateStr.isNotEmpty) {
+  try {
+    // ✅ Si ta date vient déjà sous forme de string "24/10/2025", tu peux la parser :
+    final parsed = DateFormat('dd/MM/yyyy').parse(dateStr);
+    formattedDate = DateFormat('dd/MM/yy').format(parsed);
+  } catch (e) {
+    formattedDate = dateStr; // fallback au texte brut
+  }
+}
 
                     return InkWell(
                       onDoubleTap: () => _recordDialog(index: index),
@@ -601,9 +616,10 @@ Future<void> _saveConsumablesToFirestore({
                                 child: Padding(
                                   padding: const EdgeInsets.only(top: 4),
                                   child: Text(
-                                    record['date'] ?? '',
+                                    formattedDate,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
+                                      fontSize: 13,
                                       color: Colors.indigo,
                                     ),
                                   ),

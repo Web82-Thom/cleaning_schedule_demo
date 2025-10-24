@@ -13,6 +13,7 @@ class DetailsProductPage extends StatelessWidget {
       fileNamePrefix: 'Produits',
       elementName: product,
       routePdfList: '/listPdfProducts',
+      headerTitle: 'Lieu(x)',
     );
   }
 }
