@@ -180,7 +180,7 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
   // ---------- Build Widget ----------
   @override
   Widget build(BuildContext context) {
-    final title = 'Semaine $_weekNumber — du ${DateFormat('dd/MM').format(_startOfWeek)} au ${DateFormat('dd/MM').format(_endOfWeek)}';
+    final title = 'S.$_weekNumber — du ${DateFormat('dd/MM').format(_startOfWeek)} au ${DateFormat('dd/MM').format(_endOfWeek)}';
 
     return StreamBuilder(
       stream: FirebaseFirestore.instance.collection('events')
@@ -330,20 +330,39 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
                         children: [
                           const SizedBox(width: 40),
                           ..._weekDays.map(
-                            (d) => Container(
-                              width: 180,
-                              alignment: Alignment.center,
-                              padding: const EdgeInsets.all(8),
-                              child: Text(
-                                DateFormat(
-                                  'EEEE',
-                                  'fr_FR',
-                                ).format(d).toUpperCase(),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                            (d) {
+                              final dayName = DateFormat('EEEE', 'fr_FR').format(d).toUpperCase();
+                              final dayNumber = DateFormat('d').format(d); // ex: "21"
+
+                              return Container(
+                                width: 190,
+                                alignment: Alignment.center,
+                                padding: const EdgeInsets.all(8),
+                                child: RichText(
+                                  textAlign: TextAlign.center,
+                                  text: TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text: '$dayName - ',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black,
+                                          fontSize: 20
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: dayNumber,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.indigo,
+                                          fontSize: 20,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ),
+                              );
+                            },
                           ),
                         ],
                       ),
