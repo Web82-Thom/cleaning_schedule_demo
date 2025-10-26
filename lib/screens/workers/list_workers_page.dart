@@ -53,6 +53,7 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
       
                 final status = workersController.getStatusLabel(data);
                 final isAbsentData = data['isAbcent'] == true;
+                final hasCustomEndTime = workersController.hasDefinedEndTime(data);
       
                 return InkWell(
                   onTap: () {
@@ -75,7 +76,7 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
                             ),
                           ),
                           // Icône horloge si le worker a un workSchedule
-                          if (data['workSchedule'] != null)
+                          if (hasCustomEndTime)
                           const Icon(
                             Icons.schedule,
                             color: Colors.pinkAccent,
