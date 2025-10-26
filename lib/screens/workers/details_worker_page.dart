@@ -282,55 +282,38 @@ class _DetailsWorkerPageState extends State<DetailsWorkerPage> {
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.center,
                                           children: const [
-                                            Icon(
-                                              Icons.block,
-                                              color: Colors.redAccent,
-                                              size: 18,
-                                            ),
+                                            Icon(Icons.block, color: Colors.redAccent, size: 18),
                                             SizedBox(width: 4),
                                             Text(
                                               'Ne travaille pas',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
-                                              ),
+                                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                                             ),
                                           ],
                                         )
-                                        else ...[ 
-                                          if (!worksMorning)
+                                        else if (!worksMorning)
                                           Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.start,
+                                            mainAxisAlignment: MainAxisAlignment.start,
                                             children: const [
-                                              Icon(Icons.wb_sunny,
-                                                  color: Colors.orange,
-                                                  size: 18),
-                                              SizedBox(width: 4),
-                                              Text('Ne travaille pas',
-                                                  style: TextStyle(
-                                                      fontSize: 13)),
-                                            ],
-                                          ),
-                                          if (!worksAfternoon)
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.end,
-                                            children: const [
-                                              Icon(
-                                                Icons.nights_stay,
-                                                color: Colors.indigo,
-                                                size: 18,
-                                              ),
+                                              Icon(Icons.wb_sunny, color: Colors.orange, size: 18),
                                               SizedBox(width: 4),
                                               Text(
-                                                'Ne travaille pas',
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                ),
+                                                'Ne travaille pas le matin',
+                                                style: TextStyle(fontSize: 13),
                                               ),
                                             ],
-                                          ),
-                                        ],
+                                          )
+                                        else if (!worksAfternoon)
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.end,
+                                          children: const [
+                                            Icon(Icons.nights_stay, color: Colors.indigo, size: 18),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'Ne travaille pas l\'après-midi',
+                                              style: TextStyle(fontSize: 13),
+                                            ),
+                                          ],
+                                        )
                                       ],
                                     ),
                                   ),
