@@ -145,7 +145,18 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 20),
-
+              TextButton(
+                onPressed: () {
+                  _authController.resetPassword(
+                    email: _emailController.text.trim(),
+                    context: context,
+                  );
+                },
+                child: const Text(
+                  "Mot de passe oublié ?",
+                  style: TextStyle(color: Colors.indigo),
+                ),
+              ),
               // 🔹 Confirmation (si inscription)
               if (!_isLogin)
                 TextField(

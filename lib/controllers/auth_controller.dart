@@ -238,4 +238,87 @@ class AuthController extends ChangeNotifier {
       }
     }
   }
+
+  /// --- 🧩 REZET PASSWORD ---
+  Future<void> resetPassword({
+    required String email,
+    required BuildContext context,
+  }) async {
+    BuildContext? loaderContext;
+
+    if (email.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez entrer une adresse e-mail.')),
+      );
+      return;
+    }
+
+    // 🔹 Affiche un loader modal sécurisé
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        useRootNavigator: true,
+        barrierDismissible: false,
+        builder: (ctx) {
+          loaderContext = ctx;
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.indigo),
+          );
+        },
+      );
+    }
+
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+
+      // ✅ Ferme le loader si encore monté
+      if (loaderContext != null && loaderContext!.mounted && Navigator.canPop(loaderContext!)) {
+        Navigator.of(loaderContext!).pop();
+      }
+
+      // ✅ Message de succès
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              '📨 Email de réinitialisation envoyé !\nVérifiez votre boîte mail.',
+            ),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      // 🔹 Ferme le loader proprement
+      if (loaderContext != null && loaderContext!.mounted && Navigator.canPop(loaderContext!)) {
+        Navigator.of(loaderContext!).pop();
+      }
+
+      // 🔹 Message d’erreur Firebase
+      if (context.mounted) {
+        String errorMessage = 'Erreur : ${e.message}';
+        if (e.code == 'user-not-found') {
+          errorMessage = 'Aucun utilisateur trouvé avec cet email.';
+        } else if (e.code == 'invalid-email') {
+          errorMessage = 'Adresse e-mail invalide.';
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
+    } catch (e) {
+      // 🔹 Ferme le loader proprement
+      if (loaderContext != null && loaderContext!.mounted && Navigator.canPop(loaderContext!)) {
+        Navigator.of(loaderContext!).pop();
+      }
+
+      // 🔹 Message d’erreur générique
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur inattendue : $e')),
+        );
+      }
+    }
+  }
+
 }
