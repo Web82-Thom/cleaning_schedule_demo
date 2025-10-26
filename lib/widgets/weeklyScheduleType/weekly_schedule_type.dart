@@ -36,24 +36,95 @@ const _daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
 final Map<String, List<Map<String, String>>> kWeeklyType = {
   // ✅ Semaine normale (hebdo)
   'monday': [
-    {'place': 'Le T5', 'timeSlot': 'morning'},
-    {'place': 'Hôtel', 'timeSlot': 'afternoon'},
+    //----Matin----
+    {'place': 'Foyer d\'hébergement', 'timeSlot': 'morning'},
+    {'place': 'Foyer d\'hébergement', 'timeSlot': 'morning'},
+    {'place': 'Foyer d\'hébergement', 'timeSlot': 'morning'},
+    {'place': 'Foyer de vie', 'timeSlot': 'morning'},
+    {'place': 'Foyer de vie', 'timeSlot': 'morning'},
+    {'place': 'Foyer de vie', 'timeSlot': 'morning'},
+    {'place': 'Tignol negrepelisse magasin', 'timeSlot': 'morning'},
+    {'place': 'Tignol negrepelisse maison', 'timeSlot': 'morning'},
+    //----Après-midi----
+    {'place': 'Foyer de vie', 'timeSlot': 'afternoon'},
+    {'place': 'Foyer de vie', 'timeSlot': 'afternoon'},
+    {'place': 'Foyer de vie', 'timeSlot': 'afternoon'},
+    {'place': 'SAVS', 'timeSlot': 'afternoon'},
+    {'place': 'Tignol monclarc de Quercy', 'timeSlot': 'afternoon'},
+    {'place': 'Club House', 'timeSlot': 'afternoon'},
+    {'place': 'Centre équestre', 'timeSlot': 'afternoon'},
+    {'place': 'Blanchisserie', 'timeSlot': 'afternoon'},
+    {'place': 'Château', 'timeSlot': 'afternoon'},
   ],
   'tuesday': [
+    //----Matin----
     {'place': 'Foyer d\'hébergement', 'timeSlot': 'morning'},
+    {'place': 'Foyer d\'hébergement', 'timeSlot': 'morning'},
+    {'place': 'Foyer d\'hébergement', 'timeSlot': 'morning'},
+    {'place': 'Foyer de vie', 'timeSlot': 'morning'},
+    {'place': 'Foyer de vie', 'timeSlot': 'morning'},
+    {'place': 'Médico social', 'timeSlot': 'morning'},
+    //----Après-midi----
+    {'place': 'Foyer d\'hébergement', 'timeSlot': 'afternoon'},
+    {'place': 'Foyer de vie', 'timeSlot': 'afternoon'},
+    {'place': 'Foyer de vie', 'timeSlot': 'afternoon'},
     {'place': 'Le T5', 'timeSlot': 'afternoon'},
+    {'place': 'Château', 'timeSlot': 'afternoon'},
+    {'place': 'Tignol negrepelisse maison', 'timeSlot': 'afternoon'},
+    {'place': 'Tignol Vaissac', 'timeSlot': 'afternoon'},
   ],
   'wednesday': [
-    {'place': 'Hôtel', 'timeSlot': 'morning'},
-    {'place': 'Foyer d\'hébergement', 'timeSlot': 'afternoon'},
+    //----Matin----
+    {'place': 'Foyer d\'hébergement', 'timeSlot': 'morning'},
+    {'place': 'Foyer d\'hébergement', 'timeSlot': 'morning'},
+    {'place': 'Foyer d\'hébergement', 'timeSlot': 'morning'},
+    {'place': 'Foyer de vie', 'timeSlot': 'morning'},
+    {'place': 'Foyer de vie', 'timeSlot': 'morning'},
+    {'place': 'Bureau Administration', 'timeSlot': 'morning'},
+    {'place': 'Salle de sport', 'timeSlot': 'morning'},
+
+    //----Après-midi----
+    {'place': 'Foyer de vie', 'timeSlot': 'afternoon'},
+    {'place': 'Foyer de vie', 'timeSlot': 'afternoon'},
+    {'place': 'Bureau Administration', 'timeSlot': 'afternoon'},
+    {'place': 'Tignol negrepelisse magasin', 'timeSlot': 'afternoon'},
+    {'place': 'Château', 'timeSlot': 'afternoon'},
   ],
   'thursday': [
-    {'place': 'Le T5', 'timeSlot': 'morning'},
+    //----Matin----
+    {'place': 'Foyer d\'hébergement', 'timeSlot': 'morning'},
+    {'place': 'Foyer d\'hébergement', 'timeSlot': 'morning'},
+    {'place': 'Foyer d\'hébergement', 'timeSlot': 'morning'},
+    {'place': 'Foyer de vie', 'timeSlot': 'morning'},
+    {'place': 'Foyer de vie', 'timeSlot': 'morning'},
+    {'place': 'Foyer de vie', 'timeSlot': 'morning'},
+    {'place': 'Appart Bruno', 'timeSlot': 'morning'},
+    {'place': 'Espace vert', 'timeSlot': 'morning'},
+    {'place': 'Multi services', 'timeSlot': 'morning'},
+    {'place': 'Centre équestre', 'timeSlot': 'morning'},
+    {'place': 'Atelier', 'timeSlot': 'morning'},
+    //----Après-midi----
     {'place': 'Foyer d\'hébergement', 'timeSlot': 'afternoon'},
+    {'place': 'Foyer d\'hébergement', 'timeSlot': 'afternoon'},
+    {'place': 'Foyer de vie', 'timeSlot': 'afternoon'},
+    {'place': 'Foyer de vie', 'timeSlot': 'afternoon'},
+    {'place': 'Foyer de vie', 'timeSlot': 'afternoon'},
+    {'place': 'Château', 'timeSlot': 'afternoon'},
   ],
   'friday': [
-    {'place': 'Hôtel', 'timeSlot': 'morning'},
-    {'place': 'Le T5', 'timeSlot': 'afternoon'},
+    //----Matin----
+    {'place': 'Foyer d\'hébergement', 'timeSlot': 'morning'},
+    {'place': 'Foyer d\'hébergement', 'timeSlot': 'morning'},
+    {'place': 'Foyer d\'hébergement', 'timeSlot': 'morning'},
+    {'place': 'Foyer de vie', 'timeSlot': 'morning'},
+    {'place': 'Foyer de vie', 'timeSlot': 'morning'},
+    {'place': 'Bureau Administration', 'timeSlot': 'morning'},
+    {'place': 'Tignol negrepelisse magasin', 'timeSlot': 'morning'},
+    {'place': 'CSE', 'timeSlot': 'morning'},
+    {'place': 'Blanchisserie', 'timeSlot': 'morning'},
+    {'place': 'Centre équestre', 'timeSlot': 'morning'},
+    {'place': 'Chateau', 'timeSlot': 'morning'},
+    
   ],
 };
 
@@ -61,25 +132,31 @@ final Map<String, List<Map<String, String>>> kDustType = {
   // 🧹 Semaine poussière (non hebdo)
   // (mêmes lieux/slots que hebdo par défaut — tu peux adapter)
   'monday': [
-    {'place': 'Le T5', 'timeSlot': 'morning'},
-    {'place': 'Hôtel', 'timeSlot': 'afternoon'},
+    //----Après-midi----
+    {'place': 'SAVS', 'timeSlot': 'afternoon'},
+    {'place': 'Château', 'timeSlot': 'afternoon'},
+    
   ],
   'tuesday': [
-    {'place': 'Foyer d\'hébergement', 'timeSlot': 'morning'},
-    {'place': 'Le T5', 'timeSlot': 'afternoon'},
+    //----Matin----
+    {'place': 'Foyer de vie', 'timeSlot': 'morning'},
+    {'place': 'Médico socail', 'timeSlot': 'morning'},
+    //----Après-midi----
+    {'place': 'Foyer de vie', 'timeSlot': 'afternoon'},
   ],
   'wednesday': [
-    {'place': 'Hôtel', 'timeSlot': 'morning'},
-    {'place': 'Foyer d\'hébergement', 'timeSlot': 'afternoon'},
+    //----Matin----
+    {'place': 'Bureaux Administratif', 'timeSlot': 'morning'},
+    {'place': 'Le T5', 'timeSlot': 'morning'},
+    //----Après-midi----
+    {'place': 'Bureaux Administratif', 'timeSlot': 'afternoon'},
+    {'place': 'Foyer de vie', 'timeSlot': 'afternoon'},
   ],
   'thursday': [
-    {'place': 'Le T5', 'timeSlot': 'morning'},
-    {'place': 'Foyer d\'hébergement', 'timeSlot': 'afternoon'},
+    //----Matin----
+    {'place': 'Appart Bruno', 'timeSlot': 'morning'},
   ],
-  'friday': [
-    {'place': 'Hôtel', 'timeSlot': 'morning'},
-    {'place': 'Le T5', 'timeSlot': 'afternoon'},
-  ],
+  
 };
 
 /// ----------------------------------------
@@ -97,7 +174,11 @@ List<Map<String, dynamic>> generateDayTypeEvents({
   final key = dayName.toLowerCase();
   if (!_daysOrder.contains(key)) return [];
 
-  final source = dustWeek ? kDustType[key]! : kWeeklyType[key]!;
+  // 🔹 On récupère la source, si absente -> []
+  final source = dustWeek
+      ? (kDustType[key] ?? <Map<String, String>>[])
+      : (kWeeklyType[key] ?? <Map<String, String>>[]);
+
   final bool isWeeklyTask = !dustWeek;
   final String task = dustWeek ? 'Poussières' : '';
 
@@ -108,9 +189,9 @@ List<Map<String, dynamic>> generateDayTypeEvents({
       ),
       'timeSlot': item['timeSlot'],
       'place': item['place'],
-      'subPlace': '[]',           // String pour matcher ton EventModel existant
-      'task': task,               // '' en hebdo, 'Poussières' en poussière
-      'workerIds': <String>[],    // vide à la génération
+      'subPlace': '[]',
+      'task': task,
+      'workerIds': <String>[],
       'createdAt': FieldValue.serverTimestamp(),
       'weekNumber': weekNumber,
       'isWeeklyTask': isWeeklyTask,
