@@ -150,12 +150,15 @@ class _NoWeeklyTasksPageState extends State<NoWeeklyTasksPage> {
               final date = ts?.toDate();
               if (date == null) continue;
 
+              // 🚫 Ignore les tâches "Poussières"
+              if ((data['task'] ?? '').toString().toLowerCase() == 'poussières') continue;
+
               // 🔍 Filtre recherche
               final taskName = (data['task'] ?? '').toString().toLowerCase();
               final place = (data['place'] ?? '').toString().toLowerCase();
-              if (_searchQuery.isNotEmpty &&
-                  !taskName.contains(_searchQuery) &&
-                  !place.contains(_searchQuery)) continue;
+              if (_searchQuery.isNotEmpty && !taskName.contains(_searchQuery) && !place.contains(_searchQuery)) {
+                continue;
+              }
 
               final diffDays = now.difference(date).inDays;
               final isPast =
