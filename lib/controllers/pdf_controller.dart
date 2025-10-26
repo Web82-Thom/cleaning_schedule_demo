@@ -767,4 +767,204 @@ class PdfController extends ChangeNotifier {
     }
   }
 
+
+
+/// 🔹 GÉNÉRATION DU PDF DES CONSOMMABLES
+  Future<void> generatePdfConsummables(
+    BuildContext context,
+    String title,
+    String elementName,
+    String fileNamePrefix,
+    List<Map<String, dynamic>> records,
+    ) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Exporter en PDF'),
+      content: Text(
+          'Voulez-vous générer le PDF ($title) ($elementName) ?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Annuler'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Confirmer'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed != true) return;
+
+  try {
+    final pdf = pw.Document();
+
+    final now = DateTime.now();
+    final formattedDate =
+        '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
+
+    // 🔹 Logo
+    final logoData = await rootBundle.load('assets/icon/app_icon.png');
+    final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
+
+    // 🔹 Détection du mode Produits
+    final bool isProduits = title.toLowerCase().contains('produit');
+
+    // 🔹 PAGE DE GARDE
+    pdf.addPage(
+      pw.Page(
+        build: (pw.Context context) => pw.Center(
+          child: pw.Column(
+            mainAxisAlignment: pw.MainAxisAlignment.center,
+            children: [
+              pw.Image(logoImage, width: 100, height: 100),
+              pw.SizedBox(height: 24),
+              pw.Text(
+                title,
+                style: pw.TextStyle(
+                  fontSize: 28,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.indigo,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Text(
+                elementName,
+                style: const pw.TextStyle(fontSize: 18),
+              ),
+              pw.SizedBox(height: 30),
+              pw.Text(
+                'Rapport ${isProduits ? 'de consommation des produits' : 'des prestations'}',
+                style: pw.TextStyle(
+                  fontSize: 20,
+                  color: PdfColors.indigo800,
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Text(
+                'Exporté le $formattedDate',
+                style: const pw.TextStyle(fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // 🔹 PAGE DE CONTENU
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        header: (context) => pw.Container(
+          alignment: pw.Alignment.centerLeft,
+          margin: const pw.EdgeInsets.only(bottom: 10),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                '$title - $elementName',
+                style: pw.TextStyle(
+                  color: PdfColors.indigo,
+                  fontWeight: pw.FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              pw.Text(
+                formattedDate,
+                style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey),
+              ),
+            ],
+          ),
+        ),
+        footer: (context) => pw.Container(
+          alignment: pw.Alignment.centerRight,
+          margin: const pw.EdgeInsets.only(top: 10),
+          child: pw.Text(
+            'Page ${context.pageNumber} / ${context.pagesCount}',
+            style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+          ),
+        ),
+        build: (pw.Context context) {
+          final List<List<String>> rows = [];
+
+          for (final record in records) {
+            final date = record['date'] ?? '';
+            final List<Map<String, dynamic>> produits =
+                (record['produits'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+            for (final produit in produits) {
+              rows.add([
+                date,
+                produit['nom'] ?? '',
+                produit['quantite'] ?? '',
+              ]);
+            }
+          }
+
+          // 🔹 En-têtes dynamiques
+          final headers = [
+            'Date',
+            isProduits ? 'Lieu(x)' : 'Produit',
+            'Quantité',
+          ];
+
+          return [
+            pw.TableHelper.fromTextArray(
+              headers: headers,
+              data: rows,
+              headerStyle: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.white,
+              ),
+              headerDecoration:
+                  const pw.BoxDecoration(color: PdfColors.indigo),
+              cellAlignment: pw.Alignment.centerLeft,
+              cellPadding:
+                  const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            ),
+            pw.SizedBox(height: 20),
+            pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Text(
+                'Généré automatiquement le $formattedDate',
+                style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+              ),
+            ),
+          ];
+        },
+      ),
+    );
+
+    // 🔹 Sauvegarde
+    final dir = await getApplicationDocumentsDirectory();
+    final safePrefix = fileNamePrefix.toLowerCase().replaceAll(' ', '_');
+    final safeElement =
+        elementName.toLowerCase().replaceAll(' ', '_');
+    final file = File('${dir.path}/conso_${safePrefix}_$safeElement.pdf');
+
+    if (await file.exists()) await file.delete();
+    await file.writeAsBytes(await pdf.save());
+
+    await OpenFilex.open(file.path);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'PDF généré et sauvegardé : ${file.path.split('/').last} ✅'),
+        ),
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur lors de la génération PDF : $e')),
+      );
+    }
+  }
+}
+  
 }
