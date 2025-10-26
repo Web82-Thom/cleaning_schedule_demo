@@ -145,6 +145,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 20),
+              if (_isLogin)
               TextButton(
                 onPressed: () {
                   _authController.resetPassword(
