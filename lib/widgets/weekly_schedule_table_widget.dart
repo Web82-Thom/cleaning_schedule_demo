@@ -215,6 +215,18 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
 
         return Scaffold(
           appBar: AppBar(
+            leading: IconButton(
+          onPressed: (){
+            _scheduleController.showDialogGeneratedWeeklyScheduleType(
+      context: context,
+      selectedDate: _startOfWeek, // ta semaine courante
+      weekNumber: _weekNumber,// ou false si poussière
+            );
+          }, 
+          icon: Icon(
+            Icons.calendar_view_week_rounded, 
+            color: Colors.green,),
+        ),
             title: Row(
               children: [
                 IconButton(
