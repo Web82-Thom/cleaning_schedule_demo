@@ -1,62 +1,191 @@
+import 'package:cleaning_schedule/screens/home_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class AuthController extends ChangeNotifier{
+class AuthController extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // --- Inscription monitrice moniteur uniquement
+  /// --- 🧩 INSCRIPTION MONITEUR / MONITRICE ---
   Future<void> registerInstructor({
-    required String nom,
-    required String prenom,
-    required String email,
-    required String password,
-    required BuildContext context,
+  required String nom,
+  required String prenom,
+  required String email,
+  required String password,
+  required BuildContext context,
   }) async {
-      try {
-        showDialog(
+    BuildContext? loaderContext;
+
+    // 🔹 Affiche un loader modal sécurisé
+    if (context.mounted) {
+      showDialog(
         context: context,
-        barrierDismissible: false, // empêche de fermer le loader
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(color: Colors.indigo),
-        ),
+        useRootNavigator: true,
+        barrierDismissible: false,
+        builder: (ctx) {
+          loaderContext = ctx;
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.indigo),
+          );
+        },
       );
-      // Crée le compte Firebase Auth
-      UserCredential cred = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
+    }
+
+    try {
+      // 🔹 Création du compte Firebase
+      final cred = await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password.trim(),
       );
 
       final user = cred.user;
       if (user == null) throw Exception('Erreur de création du compte.');
 
-      // Sauvegarde dans Firestore
+      // 🔹 Enregistrement dans Firestore
       await _db.collection('users').doc(user.uid).set({
-        'nom': nom,
-        'prenom': prenom,
-        'email': email,
+        'nom': nom.trim(),
+        'prenom': prenom.trim(),
+        'email': email.trim(),
         'role': 'instructor',
         'actif': true,
         'dateCreation': FieldValue.serverTimestamp(),
       });
-      // ✅ Ferme le loader avant de continuer
-      if (context.mounted) Navigator.pop(context);
-      // ✅ On revient à la page précédente (AuthWrapper redirigera automatiquement)
+
+      // ✅ Ferme le loader si encore monté
+      if (loaderContext != null && loaderContext!.mounted && Navigator.canPop(loaderContext!)) {
+        Navigator.of(loaderContext!).pop();
+      }
+
+      // ✅ Navigation vers HomePage
       if (context.mounted) {
-        Navigator.pop(context); 
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => HomePage()),
+          (route) => false,
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Compte créé avec succès ✅')),
+        );
       }
     } on FirebaseAuthException catch (e) {
+      // 🔹 Ferme le loader proprement
+      if (loaderContext != null && loaderContext!.mounted && Navigator.canPop(loaderContext!)) {
+        Navigator.of(loaderContext!).pop();
+      }
+
+      // 🔹 Message d’erreur Firebase
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'Erreur d’inscription')),
-      );
+          SnackBar(content: Text(e.message ?? 'Erreur d’inscription Firebase')),
+        );
+      }
+    } catch (e) {
+      // 🔹 Ferme le loader proprement
+      if (loaderContext != null && loaderContext!.mounted && Navigator.canPop(loaderContext!)) {
+        Navigator.of(loaderContext!).pop();
+      }
+
+      // 🔹 Message d’erreur générique
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur inattendue : $e')),
+        );
       }
     }
   }
-  
+
+  /// --- 🧩 CONNEXION UTILISATEUR ---
+  Future<void> loginUser({
+  required String email,
+  required String password,
+  required BuildContext context,
+  }) async {
+    BuildContext? loaderContext;
+
+    // 🔹 Affiche un loader modal sécurisé
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        useRootNavigator: true,
+        barrierDismissible: false,
+        builder: (ctx) {
+          loaderContext = ctx;
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.indigo),
+          );
+        },
+      );
+    }
+
+    try {
+      // 🔹 Connexion Firebase
+      final cred = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password.trim(),
+      );
+
+      final user = cred.user;
+      if (user == null) throw Exception("Utilisateur introuvable.");
+
+      // 🔹 Vérifie le rôle Firestore
+      final userDoc = await _db.collection('users').doc(user.uid).get();
+
+      if (!userDoc.exists ||
+          userDoc['role'] != 'instructor' ||
+          userDoc['actif'] == false) {
+        await _auth.signOut();
+        throw Exception("Accès refusé : moniteur/trice inactif(ve) ou non autorisé(e).");
+      }
+
+      // ✅ Ferme le loader si encore monté
+      if (loaderContext != null && loaderContext!.mounted && Navigator.canPop(loaderContext!)) {
+        Navigator.of(loaderContext!).pop();
+      }
+
+      // ✅ Navigation vers HomePage (safe)
+      if (context.mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => HomePage()),
+          (route) => false,
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Connexion réussie ✅")),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      // 🔹 Ferme le loader proprement
+      if (loaderContext != null && loaderContext!.mounted && Navigator.canPop(loaderContext!)) {
+        Navigator.of(loaderContext!).pop();
+      }
+
+      // 🔹 Affiche message Firebase
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? 'Erreur de connexion Firebase')),
+        );
+      }
+    } catch (e) {
+      // 🔹 Ferme le loader proprement
+      if (loaderContext != null && loaderContext!.mounted && Navigator.canPop(loaderContext!)) {
+        Navigator.of(loaderContext!).pop();
+      }
+
+      // 🔹 Message d’erreur générique
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : $e')),
+        );
+      }
+    }
+  }
+
+  /// --- 🧩 CHARGEMENT DES MONITEURS ACTIFS ---
   Map<String, String> monitorIds = {};
-  ///Chargement de tous les moniteurs
+
   Future<Map<String, String>> loadMonitors() async {
     final snapshot = await _db
         .collection('users')
@@ -70,12 +199,10 @@ class AuthController extends ChangeNotifier{
     };
   }
 
-  //  Charge la liste des moniteurs (instructors) actifs depuis Firestore
   Future<Map<String, String>> loadMonitorsMap() async {
     final Map<String, String> monitorsMap = {};
-
     try {
-      final snapshot = await FirebaseFirestore.instance
+      final snapshot = await _db
           .collection('users')
           .where('role', isEqualTo: 'instructor')
           .where('actif', isEqualTo: true)
@@ -90,45 +217,25 @@ class AuthController extends ChangeNotifier{
     } catch (e) {
       debugPrint('Erreur chargement des moniteurs: $e');
     }
-
     return monitorsMap;
   }
 
-  // --- Connexion : vérifie le rôle avant d'autoriser l’accès
-  Future<void> signIn({
-    required String email,
-    required String password,
-    required BuildContext context,
-  }) async {
+  /// --- 🧩 DÉCONNEXION ---
+  Future<void> signOut(BuildContext context) async {
     try {
-      UserCredential cred = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      final userDoc = await _db.collection('users').doc(cred.user!.uid).get();
-
-      if (!userDoc.exists || userDoc['role'] != 'instructor' || userDoc['actif'] == false) {
-        await _auth.signOut();
-        throw Exception("Accès réservé aux monitrices et moniteurs actifs.");
-      }
-
-    } on FirebaseAuthException catch (e) {
+      await _auth.signOut();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'Erreur de connexion')),
-      );
+          const SnackBar(content: Text('Déconnexion réussie 👋')),
+        );
+        Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+          SnackBar(content: Text('Erreur de déconnexion : $e')),
+        );
       }
     }
-  }
-
-  Future<void> signOut(BuildContext context) async {
-    await _auth.signOut();
   }
 }
