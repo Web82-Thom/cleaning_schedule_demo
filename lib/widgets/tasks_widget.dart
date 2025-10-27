@@ -9,8 +9,8 @@ class TasksWidget extends ChangeNotifier{
     'Gaze',
     'Désinfection',
     'Décapage cuisine',
-    'Container',
-    'Drap',
+    'Conteneur',
+    'Draps',
   ];
   List<String> tasksNoWeekly = [
     'Vitres', 
