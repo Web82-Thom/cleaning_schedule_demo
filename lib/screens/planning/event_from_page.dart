@@ -27,7 +27,9 @@ class _EventFormPageState extends State<EventFormPage> {
 
   // 🔹 Lieux / sous-lieux / workers
   List<Map<String, dynamic>> _places = [];
+
   Map<String, List<String>> _subPlacesMap = {};
+  
   List<Map<String, dynamic>> _workers = [];
 
   // 🔹 Champs formulaire
@@ -37,7 +39,7 @@ class _EventFormPageState extends State<EventFormPage> {
   List<String> _selectedSubPlaces = [];
   String? _selectedTask;
   bool _isWeeklyTask = true;
-  bool _isReprogrammed = false;
+  final bool _isReprogrammed = false;
   List<String> _selectedWorkers = [];
 
   late bool _isEditing;
@@ -342,7 +344,14 @@ class _EventFormPageState extends State<EventFormPage> {
     final allTasks = [...tasksWidget.tasksWeekly, ...tasksWidget.tasksNoWeekly];
     final taskItems = allTasks.toSet().toList();
     if (_selectedTask != null && !taskItems.contains(_selectedTask)) taskItems.add(_selectedTask!);
+    // 🔹 On trie les lieux et sous-lieux avant d'afficher
+    final sortedPlaces = List<Map<String, dynamic>>.from(_places)
+      ..sort((a, b) => (a['name'] ?? '').toString().toLowerCase().compareTo((b['name'] ?? '').toString().toLowerCase()));
 
+    final sortedSubPlacesMap = {
+      for (var entry in _subPlacesMap.entries)
+        entry.key: (List<String>.from(entry.value)..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()))),
+    };
     return SafeArea(
       child: Scaffold(
         appBar: AppBar(
@@ -407,7 +416,7 @@ class _EventFormPageState extends State<EventFormPage> {
                 DropdownButtonFormField<String>(
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Lieu', border: OutlineInputBorder()),
-                  items: _places.map((p) => DropdownMenuItem<String>(value: p['name'], child: Text(p['name']))).toList(),
+                  items: sortedPlaces.map((p)=> DropdownMenuItem<String>(value: p['name'], child: Text(p['name']))).toList(),
                   initialValue: _selectedPlace,
                   onChanged: (v) {
                     setState(() {
@@ -425,7 +434,7 @@ class _EventFormPageState extends State<EventFormPage> {
                     decoration: const InputDecoration(labelText: 'Sous-lieux (optionnels)', border: OutlineInputBorder()),
                     child: Wrap(
                       spacing: 8,
-                      children: (_subPlacesMap[_selectedPlace!] ?? []).map((sub) {
+                      children: (sortedSubPlacesMap[_selectedPlace!] ?? []).map((sub) {
                         final isSelected = _selectedSubPlaces.contains(sub);
                         return FilterChip(
                           label: Text(sub),
