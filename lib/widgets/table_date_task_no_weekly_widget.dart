@@ -17,8 +17,8 @@ class TableDateTaskNoWeeklyWidget extends StatefulWidget {
 
 class _TableDateTaskNoWeeklyWidgetState
     extends State<TableDateTaskNoWeeklyWidget> {
-  final CollectionReference eventsRef =
-      FirebaseFirestore.instance.collection('events');
+  final CollectionReference monitoringRef =
+      FirebaseFirestore.instance.collection('noWeeklyTasksMonitoring');
 
   bool _loading = true;
   List<Map<String, dynamic>> _pastEvents = [];
@@ -26,49 +26,48 @@ class _TableDateTaskNoWeeklyWidgetState
   @override
   void initState() {
     super.initState();
-    _loadEvents();
+    _loadPastNoWeeklyForTask();
   }
 
-  Future<void> _loadEvents() async {
+  Future<void> _loadPastNoWeeklyForTask() async {
     try {
-      // 🔹 On récupère tous les events sans index ni where
-      final snapshot = await eventsRef.get();
+      final snap = await monitoringRef
+          .where('task', isEqualTo: widget.taskName)
+          .get();
 
       final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
 
-      // 🔹 On filtre localement
-      final filtered = snapshot.docs.map((doc) {
+      final list = snap.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
         final ts = data['day'] as Timestamp?;
         final date = ts?.toDate();
 
         return {
-          'task': data['task'] ?? '',
-          'place': data['place'] ?? '',
-          'isWeeklyTask': data['isWeeklyTask'] ?? true,
+          'task': (data['task'] ?? '').toString(),
+          'place': (data['place'] ?? '').toString(),
+          'isWeeklyTask': (data['isWeeklyTask'] ?? false) as bool,
           'day': date,
         };
-      }).where((event) {
-        final isNoWeekly = event['isWeeklyTask'] == false;
-        final sameTask = event['task'] == widget.taskName;
-        final date = event['day'];
-        final isPast = date != null &&
-            DateTime(date.year, date.month, date.day)
-                .isBefore(DateTime(now.year, now.month, now.day));
-
-        return isNoWeekly && sameTask && isPast;
+      })
+      // 👉 Uniquement les NON hebdo et déjà passées
+      .where((e) {
+        final date = e['day'] as DateTime?;
+        if (date == null) return false;
+        final d0 = DateTime(date.year, date.month, date.day);
+        return (e['isWeeklyTask'] == false) && d0.isBefore(today);
       }).toList();
 
-      // 🔹 Tri du plus ancien au plus récent
-      filtered.sort((a, b) =>
+      // Tri du plus ancien au plus récent
+      list.sort((a, b) =>
           (a['day'] as DateTime).compareTo(b['day'] as DateTime));
 
       setState(() {
-        _pastEvents = filtered;
+        _pastEvents = list;
         _loading = false;
       });
     } catch (e) {
-      debugPrint('Erreur chargement events: $e');
+      debugPrint('Erreur chargement noWeeklyTasksMonitoring: $e');
       setState(() => _loading = false);
     }
   }
@@ -77,14 +76,16 @@ class _TableDateTaskNoWeeklyWidgetState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.taskName),
+        title: Text('Suivi — ${widget.taskName}'),
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.white,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _pastEvents.isEmpty
               ? const Center(
                   child: Text(
-                    'Aucun événement passé pour cette tâche.',
+                    'Aucun historique pour cette tâche.',
                     style: TextStyle(fontSize: 16),
                   ),
                 )
@@ -92,55 +93,28 @@ class _TableDateTaskNoWeeklyWidgetState
                   padding: const EdgeInsets.all(8),
                   itemCount: _pastEvents.length,
                   itemBuilder: (context, index) {
-                    final event = _pastEvents[index];
-                    final date = event['day'] as DateTime?;
+                    final e = _pastEvents[index];
+                    final date = e['day'] as DateTime?;
                     final formattedDate = date != null
                         ? DateFormat('dd MMM yyyy', 'fr_FR').format(date)
                         : '—';
 
-                    // 🔹 Calcul du nombre de jours écoulés
-                    final diffDays = date != null
-                        ? DateTime.now().difference(date).inDays
-                        : 0;
-
-                    final late = diffDays > 10; // ⚠️ Si + de 10 jours
-
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 10, horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: late
-                            ? Colors.red.withValues(alpha: 0.1)
-                            : Colors.transparent,
-                        border: Border(
-                          bottom: BorderSide(color: Colors.grey.shade300),
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                          vertical: 6, horizontal: 8),
+                      elevation: 1,
+                      child: ListTile(
+                        title: Text(
+                          e['place'] ?? '',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 1,
-                            child: Text(
-                              formattedDate,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: late ? Colors.red : Colors.black,
-                                fontWeight:
-                                    late ? FontWeight.bold : FontWeight.normal,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 3,
-                            child: Text(
-                              event['place'] ?? '',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: late ? Colors.red : Colors.black87,
-                              ),
-                            ),
-                          ),
-                        ],
+                        subtitle: Text(
+                          formattedDate,
+                          style: const TextStyle(fontSize: 14),
+                        ),
                       ),
                     );
                   },

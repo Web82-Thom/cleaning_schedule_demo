@@ -1,18 +1,14 @@
-import 'dart:io';
 import 'package:cleaning_schedule/controllers/pdf_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:open_filex/open_filex.dart';
+import 'package:intl/intl.dart';
 
 class BuildTableForConsumableWidget extends StatefulWidget {
   final String title;           // Ex: "Villa" / "Home Of Life"
   final String fileNamePrefix;  // Ex: "villa", "foyerDeVie"
   final String elementName;     // Ex: "T5", "Caisse"
   final String routePdfList;    // Route vers la liste PDF correspondante
+  final String headerTitle;     // Change ne nom Lieu(x), Produits
 
   const BuildTableForConsumableWidget({
     super.key,
@@ -20,6 +16,7 @@ class BuildTableForConsumableWidget extends StatefulWidget {
     required this.fileNamePrefix,
     required this.elementName,
     required this.routePdfList,
+    required this.headerTitle,
   });
 
   @override
@@ -37,188 +34,9 @@ class _BuildTableForConsumableWidgetState extends State<BuildTableForConsumableW
     _loadConsumablesFirestore();
   }
 
-  /// 🔹 GÉNÉRATION DU PDF
-  Future<void> _generatePdf(BuildContext context) async {
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Exporter en PDF'),
-      content: Text(
-          'Voulez-vous générer le PDF ${widget.title} ${widget.elementName} ?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, false),
-          child: const Text('Annuler'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('Confirmer'),
-        ),
-      ],
-    ),
-  );
-
-  if (confirmed != true) return;
-
-  try {
-    final pdf = pw.Document();
-
-    final now = DateTime.now();
-    final formattedDate =
-        '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
-
-    // 🔹 (Optionnel) Chemin du logo local ou réseau
-    final logoData = await rootBundle.load('assets/icon/app_icon.png'); // <-- Mets ton logo ici
-    final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
-
-    // 🔹 PAGE DE GARDE
-    pdf.addPage(
-      pw.Page(
-        build: (pw.Context context) => pw.Center(
-          child: pw.Column(
-            mainAxisAlignment: pw.MainAxisAlignment.center,
-            children: [
-              pw.Image(logoImage, width: 100, height: 100),
-              pw.SizedBox(height: 24),
-              pw.Text(
-                widget.title,
-                style: pw.TextStyle(
-                  fontSize: 28,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.indigo,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-              pw.Text(
-                widget.elementName,
-                style: const pw.TextStyle(fontSize: 18),
-              ),
-              pw.SizedBox(height: 30),
-              pw.Text(
-                'Rapport de consommation',
-                style: pw.TextStyle(
-                  fontSize: 20,
-                  color: PdfColors.indigo800,
-                ),
-              ),
-              pw.SizedBox(height: 20),
-              pw.Text(
-                'Exporté le $formattedDate',
-                style: const pw.TextStyle(fontSize: 14),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    // 🔹 PAGE DE DONNÉES
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(24),
-        header: (context) => pw.Container(
-          alignment: pw.Alignment.centerLeft,
-          margin: const pw.EdgeInsets.only(bottom: 10),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text(
-                '${widget.title} - ${widget.elementName}',
-                style: pw.TextStyle(
-                  color: PdfColors.indigo,
-                  fontWeight: pw.FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-              pw.Text(
-                formattedDate,
-                style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey),
-              ),
-            ],
-          ),
-        ),
-        footer: (context) => pw.Container(
-          alignment: pw.Alignment.centerRight,
-          margin: const pw.EdgeInsets.only(top: 10),
-          child: pw.Text(
-            'Page ${context.pageNumber} / ${context.pagesCount}',
-            style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-          ),
-        ),
-        build: (pw.Context context) {
-          final List<List<String>> rows = [];
-
-          for (final record in _records) {
-            final date = record['date'] ?? '';
-            final List<Map<String, dynamic>> produits =
-    (record['produits'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-
-            for (final produit in produits) {
-              rows.add([
-                date,
-                produit['nom'] ?? '',
-                produit['quantite'] ?? '',
-              ]);
-            }
-          }
-
-          return [
-            pw.Table.fromTextArray(
-              headers: ['Date', 'Produit', 'Quantité'],
-              headerStyle: pw.TextStyle(
-                  fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-              headerDecoration: const pw.BoxDecoration(color: PdfColors.indigo),
-              cellAlignment: pw.Alignment.centerLeft,
-              cellPadding:
-                  const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-              data: rows,
-            ),
-            pw.SizedBox(height: 20),
-            pw.Align(
-              alignment: pw.Alignment.centerRight,
-              child: pw.Text(
-                'Généré automatiquement le $formattedDate',
-                style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-              ),
-            ),
-          ];
-        },
-      ),
-    );
-
-    // 🔹 Sauvegarde locale
-    final dir = await getApplicationDocumentsDirectory();
-    final safePrefix =
-        widget.fileNamePrefix.toLowerCase().replaceAll(' ', '_');
-    final safeElement =
-        widget.elementName.toLowerCase().replaceAll(' ', '_');
-    final file = File('${dir.path}/conso_${safePrefix}_$safeElement.pdf');
-
-    if (await file.exists()) await file.delete();
-    await file.writeAsBytes(await pdf.save());
-
-    await OpenFilex.open(file.path);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'PDF généré et sauvegardé : ${file.path.split('/').last} ✅'),
-        ),
-      );
-    }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur lors de la génération PDF : $e')),
-      );
-    }
-  }
-}
-
   /// 🔹 CHARGEMENT DES DONNÉES
   Future<void> _loadConsumablesFirestore() async {
+  try {
     final doc = await FirebaseFirestore.instance
         .collection('consumables')
         .doc('${widget.fileNamePrefix}_${widget.elementName}')
@@ -226,230 +44,250 @@ class _BuildTableForConsumableWidgetState extends State<BuildTableForConsumableW
 
     if (doc.exists && doc.data()?['records'] != null) {
       final records = List<Map<String, dynamic>>.from(doc.data()!['records']);
+
       setState(() {
-        _records = records
-            .map((r) => {
-                  'date': r['date'] ?? '',
-                  'produit': r['produit'] ?? '',
-                  'quantite': r['quantite']?.toString() ?? '',
-                })
-            .toList();
+        _records = records.map((r) {
+          final produitsList = (r['produits'] as List?)
+              ?.map((p) => {
+                    'nom': p['nom'] ?? '',
+                    'quantite': p['quantite'] ?? '',
+                  })
+              .toList();
+
+          return {
+            'date': r['date'] ?? '',
+            'produits': produitsList ?? [],
+          };
+        }).toList();
       });
     }
-  }
-
-  /// 🔹 Sauvegarde améliorée avec détection du type d’action
-Future<void> _saveConsumablesToFirestore({
-  String? action, // "ajout", "modif", "suppression"
-}) async {
-  try {
-    await FirebaseFirestore.instance
-        .collection('consumables')
-        .doc('${widget.fileNamePrefix}_${widget.elementName}')
-        .set({
-      'records': _records,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    if (!mounted) return;
-
-    String msg = 'Enregistré sur Firestore ✅';
-    if (action == 'ajout') msg = 'Consommable ajouté ✅';
-    if (action == 'modif') msg = 'Consommable modifié ✅';
-    if (action == 'suppression') msg = 'Consommable supprimé ✅';
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
-    );
   } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur de sauvegarde : $e')),
-      );
-    }
+    debugPrint('Erreur chargement consommables: $e');
   }
 }
 
+  /// 🔹 Sauvegarde améliorée avec détection du type d’action
+  Future<void> _saveConsumablesToFirestore({
+    String? action, // "ajout", "modif", "suppression"
+  }) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('consumables')
+          .doc('${widget.fileNamePrefix}_${widget.elementName}')
+          .set({
+        'records': _records,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-  /// 🔹 DIALOGUE D'AJOUT / MODIF
-Future<void> _recordDialog({int? index}) async {
-  final dateController = TextEditingController(
-    text: index != null ? _records[index]['date'] : '',
-  );
+      if (!mounted) return;
 
-  // 🔹 On récupère la liste des produits existants (sinon on crée une liste vide)
-  List<Map<String, String>> produits = [];
-  if (index != null && _records[index]['produits'] != null) {
-    produits = List<Map<String, String>>.from(_records[index]['produits']);
-  } else {
-    produits.add({'nom': '', 'quantite': ''});
+      String msg = 'Enregistré sur Firestore ✅';
+      if (action == 'ajout') msg = 'Consommable ajouté ✅';
+      if (action == 'modif') msg = 'Consommable modifié ✅';
+      if (action == 'suppression') msg = 'Consommable supprimé ✅';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg)),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur de sauvegarde : $e')),
+        );
+      }
+    }
   }
 
-  await showDialog(
-    context: context,
-    builder: (ctx) {
-      return StatefulBuilder(
-        builder: (context, setStateDialog) {
-          return AlertDialog(
-            title: Text(index == null
-                ? 'Ajouter un consommable'
-                : 'Modifier le consommable'),
-            content: SingleChildScrollView(
-              child: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.9, // 🔹 plein écran
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 🔹 Date
-                    TextField(
-                      controller: dateController,
-                      readOnly: true,
-                      decoration: const InputDecoration(labelText: 'Date'),
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: ctx,
-                          initialDate: DateTime.now(),
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(2100),
-                        );
-                        if (picked != null) {
-                          dateController.text =
-                              '${picked.day.toString().padLeft(2, '0')}/'
-                              '${picked.month.toString().padLeft(2, '0')}/'
-                              '${picked.year}';
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 12),
+  /// 🔹 DIALOGUE D'AJOUT / MODIF
+  Future<void> _recordDialog({int? index}) async {
+    final dateController = TextEditingController(
+      text: index != null ? _records[index]['date'] : '',
+    );
 
-                    // 🔹 Liste dynamique produits + quantités
-                    Column(
-                      children: [
-                        for (int i = 0; i < produits.length; i++)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  flex: 3,
-                                  child: TextField(
-                                    decoration: const InputDecoration(
-                                        labelText: 'Produit'),
-                                    onChanged: (v) =>
-                                        produits[i]['nom'] = v.trim(),
-                                    controller: TextEditingController(
-                                        text: produits[i]['nom']),
+    // 🔹 On récupère la liste des produits existants (sinon on crée une liste vide)
+    List<Map<String, String>> produits = [];
+    if (index != null && _records[index]['produits'] != null) {
+    produits = (_records[index]['produits'] as List)
+        .map((p) => {
+              'nom': (p['nom'] ?? '').toString(),
+              'quantite': (p['quantite'] ?? '').toString(),
+            })
+        .toList();
+  } else {
+    produits = [{'nom': '', 'quantite': ''}];
+  }
+
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: Text(index == null
+                  ? 'Ajouter un consommable'
+                  : 'Modifier le consommable'),
+              content: SingleChildScrollView(
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.9, // 🔹 plein écran
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 🔹 Date
+                      TextField(
+                        controller: dateController,
+                        readOnly: true,
+                        decoration: const InputDecoration(labelText: 'Date'),
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: ctx,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            dateController.text =
+                                '${picked.day.toString().padLeft(2, '0')}/'
+                                '${picked.month.toString().padLeft(2, '0')}/'
+                                '${picked.year}';
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      // 🔹 Liste dynamique "Lieu" ou "Produit" + quantités
+                      Column(
+                        children: [
+                          for (int i = 0; i < produits.length; i++)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: TextField(
+                                      decoration: InputDecoration(
+                                        labelText: widget.title == 'Produit' ? 'Lieu' : 'Produit',
+                                      ),
+                                      onChanged: (v) => produits[i]['nom'] = v.trim(),
+                                      controller:
+                                          TextEditingController(text: produits[i]['nom']),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  flex: 2,
-                                  child: TextField(
-                                    decoration: const InputDecoration(
-                                        labelText: 'Quantité'),
-                                    keyboardType: TextInputType.number,
-                                    onChanged: (v) =>
-                                        produits[i]['quantite'] = v.trim(),
-                                    controller: TextEditingController(
-                                        text: produits[i]['quantite']),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    flex: 2,
+                                    child: TextField(
+                                      decoration: const InputDecoration(labelText: 'Quantité'),
+                                      keyboardType: TextInputType.number,
+                                      onChanged: (v) => produits[i]['quantite'] = v.trim(),
+                                      controller:
+                                          TextEditingController(text: produits[i]['quantite']),
+                                    ),
                                   ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.remove_circle,
-                                      color: Colors.red),
-                                  onPressed: () {
-                                    setStateDialog(() {
-                                      produits.removeAt(i);
-                                    });
-                                  },
-                                ),
-                              ],
+                                  IconButton(
+                                    icon: const Icon(Icons.remove_circle, color: Colors.red),
+                                    onPressed: () {
+                                      setStateDialog(() {
+                                        produits.removeAt(i);
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton.icon(
-                            onPressed: () {
-                              setStateDialog(() {
-                                produits.add({'nom': '', 'quantite': ''});
-                              });
-                            },
-                            icon: const Icon(Icons.add, color: Colors.indigo),
-                            label: const Text('Ajouter un produit'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              if (index != null)
-                TextButton(
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (c2) => AlertDialog(
-                        title: const Text('Supprimer cette fiche ?'),
-                        content: const Text(
-                            'Voulez-vous vraiment supprimer ce consommable ?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(c2, false),
-                            child: const Text('Annuler'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(c2, true),
-                            child: const Text('Supprimer',
-                                style: TextStyle(color: Colors.red)),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: () {
+                                setStateDialog(() {
+                                  produits.add({'nom': '', 'quantite': ''});
+                                });
+                              },
+                              icon: const Icon(Icons.add, color: Colors.indigo),
+                              label: Text(
+                                widget.title == 'Produit'
+                                    ? 'Ajouter un lieu'
+                                    : 'Ajouter un produit',
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    );
-                    if (confirm == true) {
-                      Navigator.pop(ctx);
-                      setState(() {
-                        _records.removeAt(index);
-                      });
-                      await _saveConsumablesToFirestore(action: 'suppression');
-                    }
-                  },
-                  child: const Text('Supprimer',
-                      style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
                 ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Annuler'),
               ),
-              TextButton(
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  setState(() {
-                    final data = {
-                      'date': dateController.text,
-                      'produits': produits,
-                    };
-                    if (index != null) {
-                      _records[index] = data;
-                    } else {
-                      _records.add(data);
-                    }
-                  });
-                  await _saveConsumablesToFirestore(
-                    action: index != null ? 'modif' : 'ajout',
-                  );
-                },
-                child: const Text('Valider'),
-              ),
-            ],
-          );
-        },
-      );
-    },
-  );
-}
+              actions: [
+                if (index != null)
+                  TextButton(
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (c2) => AlertDialog(
+                          title: const Text('Supprimer cette fiche ?'),
+                          content: const Text(
+                              'Voulez-vous vraiment supprimer ce consommable ?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(c2, false),
+                              child: const Text('Annuler'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(c2, true),
+                              child: const Text(
+                                'Supprimer',
+                                style: TextStyle(color: Colors.red)),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true && context.mounted) {
+                        Navigator.pop(context);
+
+                        setState(() {
+                          _records.removeAt(index);
+                        });
+
+                        await _saveConsumablesToFirestore(action: 'suppression');
+
+                        if (!mounted) return; // 🔒 Vérifie à nouveau après l'attente
+                      }
+                    },
+                    child: const Text('Supprimer',
+                        style: TextStyle(color: Colors.red)),
+                  ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Annuler'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    setState(() {
+                      final data = {
+                        'date': dateController.text,
+                        'produits': produits,
+                      };
+                      if (index != null) {
+                        _records[index] = data;
+                      } else {
+                        _records.add(data);
+                      }
+                    });
+                    await _saveConsumablesToFirestore(
+                      action: index != null ? 'modif' : 'ajout',
+                    );
+                  },
+                  child: const Text('Valider'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -471,34 +309,45 @@ Future<void> _recordDialog({int? index}) async {
             color: Colors.indigo.shade50,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.picture_as_pdf,
-                      color: Colors.indigo, size: 30),
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Appui long pour créer un PDF.')),
-                  ),
-                  onLongPress: () => _generatePdf(context),
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              // Générer PDF
+              IconButton(
+                icon: const Icon(Icons.picture_as_pdf, color: Colors.indigo, size: 30),
+                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Appui long pour créer un PDF.')),
                 ),
-                TextButton(
-                  onPressed: () => Navigator.pushNamed(
-                    context,
-                    widget.routePdfList,
-                    arguments: {
-                      'title': widget.title,
-                      'fileNamePrefix': widget.fileNamePrefix,
-                      'elementName': widget.elementName,
-                    },
-                  ),
-                  child: const Text(
-                    'Liste PDF',
-                    style: TextStyle(color: Colors.indigo),
-                  ),
+                onLongPress: () => pdfController.generatePdfConsummables(context, widget.title, widget.elementName, widget.fileNamePrefix, _records),
+              ),
+
+              // Partager PDF
+              IconButton(
+                icon: const Icon(Icons.share, color: Colors.green, size: 28),
+                onPressed: () async {
+                  await pdfController.sharePdf(
+                    context: context,
+                    fileNamePrefix: widget.fileNamePrefix,
+                    elementName: widget.elementName,
+                    title: widget.title,
+                  );
+                },
+              ),
+              // Liste PDF
+              TextButton(
+                onPressed: () => Navigator.pushNamed(
+                  context,
+                  widget.routePdfList,
+                  arguments: {
+                    'title': widget.title,
+                    'fileNamePrefix': widget.fileNamePrefix,
+                    'elementName': widget.elementName,
+                  },
                 ),
-              ],
-            ),
+                child: const Text('Liste PDF', style: TextStyle(color: Colors.indigo)),
+              ),
+            ],
+          ),
+
           ),
 
           // 🔹 EN-TÊTE DU TABLEAU
@@ -506,10 +355,10 @@ Future<void> _recordDialog({int? index}) async {
             color: Colors.indigo.shade100,
             padding:
                 const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: const Row(
+            child: Row(
               children: [
                 Expanded(flex: 2, child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 3, child: Text('Produit', style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(flex: 3, child: Text(widget.headerTitle, style: TextStyle(fontWeight: FontWeight.bold))),
                 Expanded(flex: 1, child: Text('Qté', style: TextStyle(fontWeight: FontWeight.bold))),
               ],
             ),
@@ -525,6 +374,18 @@ Future<void> _recordDialog({int? index}) async {
                     final record = _records[index];
                     final List<Map<String, dynamic>> produits =
                         (record['produits'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+                        final dateStr = record['date'];
+String formattedDate = dateStr ?? '';
+
+if (dateStr != null && dateStr.isNotEmpty) {
+  try {
+    // ✅ Si ta date vient déjà sous forme de string "24/10/2025", tu peux la parser :
+    final parsed = DateFormat('dd/MM/yyyy').parse(dateStr);
+    formattedDate = DateFormat('dd/MM/yy').format(parsed);
+  } catch (e) {
+    formattedDate = dateStr; // fallback au texte brut
+  }
+}
 
                     return InkWell(
                       onDoubleTap: () => _recordDialog(index: index),
@@ -572,9 +433,10 @@ Future<void> _recordDialog({int? index}) async {
                                 child: Padding(
                                   padding: const EdgeInsets.only(top: 4),
                                   child: Text(
-                                    record['date'] ?? '',
+                                    formattedDate,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
+                                      fontSize: 13,
                                       color: Colors.indigo,
                                     ),
                                   ),

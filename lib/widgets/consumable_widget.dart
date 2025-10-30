@@ -18,27 +18,26 @@ class ConsumableWidget extends ChangeNotifier{
 
   // foyer de vie
   List<String> homeOfLife= [
-    'Caisse',
-    'T5'
+    'Caisses',
+    'Palettes'
   ];
 
   // les transferts
   List<String> transfer= [
-    'Foyer de vie',
-    'Foyer d\'hébergement',
+    'Mairie',
+    'Château',
   ];
 
   List<String> villas= [
-    'Pousiniès',
-    'T4',
-    'Appartement n°1',
-    'Appartement n°2',
-    'Appartement n°3',
-    'Gamot',
-    'Amsterdam',
+    'Appartement T1',
+    'Appartement T2',
+    'Appartement T3',
+    'Appartement T4',
+    'Maison Jaune',
+    'Manoir',
   ];
 
   List<String> otherPlaces= [
-    'Salle externe',
+    'Salle des fêtes',
   ];
 }

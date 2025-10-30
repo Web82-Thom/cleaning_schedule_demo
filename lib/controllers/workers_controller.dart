@@ -666,6 +666,25 @@ class WorkersController extends ChangeNotifier {
     );
   }
 
+  /// 🔍 Vérifie si le worker a une heure de fin prédéfinie dans son planning
+  bool hasDefinedEndTime(Map<String, dynamic> data) {
+    final raw = data['workSchedule'];
+    if (raw == null || raw is! Map || raw.isEmpty) return false;
+
+    final ws = Map<String, dynamic>.from(raw);
+
+    for (final entry in ws.entries) {
+      final value = entry.value;
+      if (value is Map) {
+        final endTime = value['endTime'];
+        if (endTime != null && endTime.toString().trim().isNotEmpty) {
+          return true; // ✅ On a trouvé une heure de fin personnalisée
+        }
+      }
+    }
+    return false;
+  }
+
   /// Supprime un jour spécifique du workSchedule avec confirmation
   void removeWorkSchedule(
     BuildContext context,
@@ -709,16 +728,6 @@ class WorkersController extends ChangeNotifier {
       ).showSnackBar(SnackBar(content: Text('Horaire du $day supprimé ✅')));
     }
   }
-
-  /// 🛠 Helpers
-  // void _resetForm() {
-  //   _isPartTime = false;
-  //   _isTherapeutic = false;
-  //   _isHalfTime = false;
-  //   _isAbcent = false;
-  //   firstNameController.clear();
-  //   nameController.clear();
-  // }
 
   Widget _buildTextField({
     required TextEditingController controller,

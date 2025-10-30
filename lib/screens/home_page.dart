@@ -47,24 +47,23 @@ class _HomePageState extends State<HomePage> {
       _selectedIndex = index;
     });
   }
-
-  @override
-  void initState() {
-    super.initState();
-    _checkUpcomingRdvs();
-    _rdvTimer = Timer.periodic(const Duration(minutes: 1), (_) => _checkUpcomingRdvs());
-  }
-
-  @override
-  void dispose() {
-    _rdvTimer?.cancel();
-    super.dispose();
+  
+  Future<void> _waitForUser() async {
+    int retries = 0;
+    while (FirebaseAuth.instance.currentUser == null && retries < 10) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      retries++;
+    }
   }
 
   Future<void> _checkUpcomingRdvs() async {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      print('Utilisateur non connecté, attente...');
+      return;
+    }
 
+    final userId = user.uid;
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('rdvs')
@@ -83,16 +82,30 @@ class _HomePageState extends State<HomePage> {
         return now.isAfter(startWindow) && now.isBefore(endWindow);
       }).toList();
 
-      if (mounted && (filtered.length != upcomingRdvs.length || filtered != upcomingRdvs)) {
-        setState(() {
-          upcomingRdvs = filtered;
-        });
+      if (mounted && (filtered.length != upcomingRdvs.length)) {
+        setState(() => upcomingRdvs = filtered);
       }
     } catch (e) {
-      // Optionnel : tu peux afficher un message ou logger l'erreur
-      print('Erreur lors du chargement des RDVs : $e');
+      print('Erreur RDV: $e');
     }
   }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _waitForUser();
+      _checkUpcomingRdvs();
+      _rdvTimer = Timer.periodic(const Duration(minutes: 1), (_) => _checkUpcomingRdvs());
+    });
+  }
+
+  @override
+  void dispose() {
+    _rdvTimer?.cancel();
+    super.dispose();
+  }
+
 
   @override
   Widget build(BuildContext context) {

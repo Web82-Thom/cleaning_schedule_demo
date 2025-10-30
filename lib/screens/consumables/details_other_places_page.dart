@@ -13,6 +13,7 @@ class DetailsOtherPlacesPage extends StatelessWidget {
       fileNamePrefix: 'Autre lieux',
       elementName: otherPlacesName,
       routePdfList: '/listPdfOtherPlaces',
+      headerTitle: 'Produits',
     );
   }
 }

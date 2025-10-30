@@ -13,6 +13,7 @@ class DetailsHomeOfLifePage extends StatelessWidget {
       fileNamePrefix: 'foyerDeVie',
       elementName: homeOfLifeName,
       routePdfList: '/listPdfHomeOfLife',
+      headerTitle: 'Produits',
     );
   }
 }

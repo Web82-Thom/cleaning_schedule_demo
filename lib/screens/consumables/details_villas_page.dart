@@ -13,6 +13,7 @@ class DetailsVillasPage extends StatelessWidget {
       fileNamePrefix: 'Villas',
       elementName: villa,
       routePdfList: '/listPdfVillas',
+      headerTitle: 'Produits',
     );
   }
 }

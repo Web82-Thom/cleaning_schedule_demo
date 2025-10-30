@@ -27,118 +27,135 @@ class ConsumablePage extends StatelessWidget {
 
     /// Fonction réutilisable pour créer une grille avec un titre
     Widget buildGrid(List<String> items, String title) {
-      final isCars = title.toLowerCase().contains('véhicule');
-      final isProducts = title.toLowerCase().contains('produits');
-      final isHomeOfLife = title.toLowerCase().contains('foyer de vie');
-      final isTransfer = title.toLowerCase().contains('transfert');
-      final isVillas = title.toLowerCase().contains('villas');
-      final isOtherPlaces = title.toLowerCase().contains('autres lieux');
+    final screenWidth = MediaQuery.of(context).size.width;
 
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
-              child: Text(
-                '<--- ${title.toUpperCase()} --->',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  decoration: TextDecoration.underline,
-                ),
+    // Adapter le nombre de colonnes selon la taille de l'écran
+    int crossAxisCount = 2;
+    double childAspectRatio = 1.0;
+
+    if (screenWidth > 1200) {
+      crossAxisCount = 4;
+      childAspectRatio = 1.3;
+    } else if (screenWidth > 800) {
+      crossAxisCount = 3;
+      childAspectRatio = 1.2;
+    } else if (screenWidth > 500) {
+      crossAxisCount = 2;
+      childAspectRatio = 1.1;
+    }
+
+    final isCars = title.toLowerCase().contains('véhicule');
+    final isProducts = title.toLowerCase().contains('produits');
+    final isHomeOfLife = title.toLowerCase().contains('foyer de vie');
+    final isTransfer = title.toLowerCase().contains('transfert');
+    final isVillas = title.toLowerCase().contains('villas');
+    final isOtherPlaces = title.toLowerCase().contains('autres lieux');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
+            child: Text(
+              '<--- ${title.toUpperCase()} --->',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                decoration: TextDecoration.underline,
               ),
             ),
           ),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-            ),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              final bgColor = colors[index % colors.length];
+        ),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: childAspectRatio,
+          ),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            final bgColor = colors[index % colors.length];
 
-              return InkWell(
-                onTap: () {
-                  if(isProducts) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => DetailsProductPage(product: item),
-                      ),
-                    );
-                  } if (isCars) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => DetailsCarsPage(carName: item),
-                      ),
-                    );
-                  } if (isHomeOfLife){
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => DetailsHomeOfLifePage(homeOfLifeName: item),
-                      ),
-                    );
-                  } if (isTransfer){
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => DetailsTransferPage(transfer: item),
-                      ),
-                    );
-                  } if(isVillas){
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => DetailsVillasPage(villa: item),
-                      ),
-                    );
-                  } if(isOtherPlaces){
-                    print('object');
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => DetailsOtherPlacesPage(otherPlacesName: item,),
-                      ),
-                    );
-                  }
-                },
-                borderRadius: BorderRadius.circular(12),
-                splashColor: Colors.black12,
-                child: Card(
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  color: bgColor,
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        item,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
+            return InkWell(
+              onTap: () {
+                if (isProducts) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DetailsProductPage(product: item),
+                    ),
+                  );
+                } else if (isCars) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DetailsCarsPage(carName: item),
+                    ),
+                  );
+                } else if (isHomeOfLife) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          DetailsHomeOfLifePage(homeOfLifeName: item),
+                    ),
+                  );
+                } else if (isTransfer) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DetailsTransferPage(transfer: item),
+                    ),
+                  );
+                } else if (isVillas) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DetailsVillasPage(villa: item),
+                    ),
+                  );
+                } else if (isOtherPlaces) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DetailsOtherPlacesPage(otherPlacesName: item),
+                    ),
+                  );
+                }
+              },
+              borderRadius: BorderRadius.circular(12),
+              splashColor: Colors.black12,
+              child: Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                color: bgColor,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(6.0),
+                    child: Text(
+                      item,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
                       ),
                     ),
                   ),
                 ),
-              );
-            },
-          ),
-        ],
-      );
-    }
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
 
     return Scaffold(
       appBar: AppBar(

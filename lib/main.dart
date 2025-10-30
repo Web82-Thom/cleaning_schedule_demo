@@ -115,6 +115,7 @@ class CleaningScheduleApp extends StatelessWidget {
         ),
         home: const AuthWrapper(),
         routes: {
+          '/home': (context) => HomePage(),
           '/listPlace': (context) => const ListPlace(),
           '/workers': (context) => const ListWorkersPage(),
           '/createdPlanning': (context) => const EventFormPage(),

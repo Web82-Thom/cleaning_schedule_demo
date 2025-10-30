@@ -23,22 +23,26 @@ class _DetailsWorkerPageState extends State<DetailsWorkerPage> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-              body: Center(child: CircularProgressIndicator()));
+            body: Center(child: CircularProgressIndicator()));
         }
 
         if (!snapshot.hasData || !snapshot.data!.exists) {
           return const Scaffold(
-              body: Center(child: Text('Aucune donnée trouvée.')));
+            body: Center(child: Text('Aucune donnée trouvée.')),
+          );
         }
 
         final data = snapshot.data!.data() as Map<String, dynamic>;
         final firstName = data['firstName'] ?? '';
         final name = data['name'] ?? '';
-        final isPartTime = data['isPartTime'] ?? false;
-        final isTherapeutic = data['isTherapeutic'] ?? false;
-        final isHalfTime = data['isHalfTime'] ?? false;
-        final isAbcent = data['isAbcent'] ?? false;
+        final bool isPartTime = data['isPartTime'] ?? false;
+        final bool isTherapeutic = data['isTherapeutic'] ?? false;
+        final bool isHalfTime = data['isHalfTime'] ?? false;
+        final bool isAbcent = data['isAbcent'] ?? false;
+        final bool isFullTime = data['isFullTime'] ?? true;
+        final bool hasCustomHours = workersController.hasDefinedEndTime(data);
 
+        // --- Statut ---
         String status = 'Temps plein';
         if (isPartTime) status = 'Temps partiel';
         if (isTherapeutic) status = 'Mi-temps thérapeutique';
@@ -81,6 +85,7 @@ class _DetailsWorkerPageState extends State<DetailsWorkerPage> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
+                    // --- Avatar + Nom ---
                     Center(
                       child: CircleAvatar(
                         radius: 45,
@@ -98,6 +103,7 @@ class _DetailsWorkerPageState extends State<DetailsWorkerPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
+                    // --- Statut ---
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -114,6 +120,7 @@ class _DetailsWorkerPageState extends State<DetailsWorkerPage> {
                       ],
                     ),
                     const SizedBox(height: 12),
+                    // --- Présence ---
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -128,27 +135,28 @@ class _DetailsWorkerPageState extends State<DetailsWorkerPage> {
                         ),
                       ],
                     ),
-                    if (data['workSchedule'] != null)
+                    // --- Heure aménagée ---
+                    if (!isAbcent && hasCustomHours)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
+                      children: const [
+                        Icon(
                           Icons.schedule,
                           color: Colors.pinkAccent,
                           size: 20,
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Text(
-                          isAbcent ? 'Actuellement absent' : 'Heure aménager',
+                          'Heure aménagée',
                           style: TextStyle(
-                            color: isAbcent ? Colors.red : Colors.pinkAccent,
+                            color: Colors.pinkAccent,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
-                        
-                    if (!data['isFullTime']) ...[
+                    // --- Bloc horaires personnalisés ---
+                    if (!isFullTime) ...[
                       const SizedBox(height: 32),
                       const Divider(),
                       const SizedBox(height: 8),
@@ -165,158 +173,156 @@ class _DetailsWorkerPageState extends State<DetailsWorkerPage> {
                         icon: const Icon(Icons.schedule),
                         label: const Text("Configurer les horaires"),
                         onPressed: () {
-                          workersController.showWorkScheduleDialog(
-                              context, workerRef.id, data);
+                          workersController.showWorkScheduleDialog(context, workerRef.id, data);
                         },
                       ),
                       const SizedBox(height: 16),
-
                       if (data['workSchedule'] != null)
-                        Builder(
-                          builder: (context) {
-                            final workSchedule = Map<String, dynamic>.from(data['workSchedule']);
-                            final orderedDays = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+                      Builder(
+                        builder: (context) {
+                          final workSchedule = Map<String, dynamic>.from(data['workSchedule']);
+                          final orderedDays = [
+                            'lundi',
+                            'mardi',
+                            'mercredi',
+                            'jeudi',
+                            'vendredi'
+                          ];
 
-                            final sortedEntries = orderedDays
+                          final sortedEntries = orderedDays
                               .where((day) => workSchedule.containsKey(day))
                               .map((day) => MapEntry(day, workSchedule[day]))
                               .where((entry) {
-                                final info = Map<String, dynamic>.from(entry.value);
-                                final worksMorning = info['worksMorning'] ?? true;
-                                final worksAfternoon = info['worksAfternoon'] ?? true;
-                                final endTime = info['endTime'];
-                                return !worksMorning || !worksAfternoon || endTime != null;
-                              }).toList();
-
-                            // 🔹 Si aucun aménagement détecté
-                            if (sortedEntries.isEmpty) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: const [
-                                    Icon(Icons.check_circle, color: Colors.green),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      "Rien à signaler",
-                                      style: TextStyle(
-                                        color: Colors.green,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-
-                            // 🔹 Sinon, afficher la liste des jours
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: sortedEntries.map((entry) {
-                                final day = entry.key;
-                                final info = Map<String, dynamic>.from(entry.value);
-                                final endTime = info['endTime'];
-                                final worksMorning = info['worksMorning'] ?? true;
-                                final worksAfternoon = info['worksAfternoon'] ?? true;
-
-                                return Card(
-                                  elevation: 3,
-                                  margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 2),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                            final info = Map<String, dynamic>.from(entry.value);
+                            final worksMorning = info['worksMorning'] ?? true;
+                            final worksAfternoon = info['worksAfternoon'] ?? true;
+                            final endTime = info['endTime'];
+                            return !worksMorning || !worksAfternoon || endTime != null;
+                          }).toList();
+                          // 🔹 Aucun aménagement
+                          if (sortedEntries.isEmpty) {
+                            return Padding(
+                              padding:const EdgeInsets.symmetric(vertical: 16.0),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green,
                                   ),
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(12),
-                                    onLongPress: () => workersController.removeWorkSchedule(
-                                      context,
-                                      widget.workerId,
-                                      day,
+                                  SizedBox(width: 8),
+                                  Text(
+                                    "Rien à signaler",
+                                    style: TextStyle(
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15,
                                     ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            day[0].toUpperCase() + day.substring(1),
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                              color: Colors.indigo,
-                                            ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          // 🔹 Aménagements détectés
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: sortedEntries.map((entry) {
+                              final day = entry.key;
+                              final info = Map<String, dynamic>.from(entry.value);
+                              final endTime = info['endTime'];
+                              final worksMorning = info['worksMorning'] ?? true;
+                              final worksAfternoon = info['worksAfternoon'] ?? true;
+
+                              return Card(
+                                elevation: 3,
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 6.0, horizontal: 2),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onLongPress: () => workersController.removeWorkSchedule(
+                                    context,
+                                    widget.workerId,
+                                    day,
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+                                    child: Column(
+                                      crossAxisAlignment:CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          day[0].toUpperCase() + day.substring(1),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: Colors.indigo,
                                           ),
-                                          const SizedBox(height: 6),
-
-                                          // 🔹 Affiche “Fin à …” seulement si endTime existe
-                                          if (endTime != null)
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Flexible(
-                                                  child: Row(
-                                                    children: [
-                                                      const Icon(Icons.access_time,
-                                                          size: 18, color: Colors.grey),
-                                                      const SizedBox(width: 6),
-                                                      Flexible(
-                                                        child: Text(
-                                                          'Fin à $endTime',
-                                                          overflow: TextOverflow.ellipsis,
-                                                          style: const TextStyle(
-                                                            fontWeight: FontWeight.w500,
-                                                            color: Colors.black87,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-
-                                          if (!worksMorning || !worksAfternoon)
-                                            Padding(
-                                              padding: const EdgeInsets.only(top: 4),
-                                              child: Row(
-                                                mainAxisAlignment: MainAxisAlignment.start,
-                                                children: [
-                                                  if (!worksMorning)
-                                                    Row(
-                                                      children: const [
-                                                        Icon(Icons.wb_sunny,
-                                                            color: Colors.orange, size: 18),
-                                                        SizedBox(width: 4),
-                                                        Text(
-                                                          'Matin libre',
-                                                          style: TextStyle(fontSize: 13),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  if (!worksAfternoon)
-                                                    Row(
-                                                      children: const [
-                                                        Icon(Icons.nights_stay,
-                                                            color: Colors.indigo, size: 18),
-                                                        SizedBox(width: 4),
-                                                        Text(
-                                                          'Après-midi libre',
-                                                          style: TextStyle(fontSize: 13),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        if (endTime != null)
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.access_time,
+                                                size: 18,
+                                                color: Colors.grey),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              'Fin à $endTime',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                                color: Colors.black87,
                                               ),
                                             ),
-                                        ],
-                                      ),
+                                          ],
+                                        ),
+                                        if (!worksMorning && !worksAfternoon)
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: const [
+                                            Icon(Icons.block, color: Colors.redAccent, size: 18),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'Ne travaille pas',
+                                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                            ),
+                                          ],
+                                        )
+                                        else if (!worksMorning)
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.start,
+                                            children: const [
+                                              Icon(Icons.wb_sunny, color: Colors.orange, size: 18),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                'Ne travaille pas le matin',
+                                                style: TextStyle(fontSize: 13),
+                                              ),
+                                            ],
+                                          )
+                                        else if (!worksAfternoon)
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.end,
+                                          children: const [
+                                            Icon(Icons.nights_stay, color: Colors.indigo, size: 18),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'Ne travaille pas l\'après-midi',
+                                              style: TextStyle(fontSize: 13),
+                                            ),
+                                          ],
+                                        )
+                                      ],
                                     ),
                                   ),
-                                );
-                              }).toList(),
-                            );
-                          },
-                        ),
+                                ),
+                              );
+                            }).toList(),
+                          );
+                        },
+                      ),
                     ],
                   ],
                 ),

@@ -1,4 +1,5 @@
 import 'package:cleaning_schedule/main.dart';
+import 'package:cleaning_schedule/models/no_weekly_task_monitoring_model.dart';
 import 'package:cleaning_schedule/widgets/tasks_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +18,7 @@ class _EventFormPageState extends State<EventFormPage> {
   final _formKey = GlobalKey<FormState>();
 
   final CollectionReference eventsRef = FirebaseFirestore.instance.collection('events');
+  final CollectionReference noWeeklyTasksMonitoring = FirebaseFirestore.instance.collection('noWeeklyTasksMonitoring');
   final CollectionReference placesRef = FirebaseFirestore.instance.collection('places');
   final CollectionReference workersRef = FirebaseFirestore.instance.collection('workers');
 
@@ -25,7 +27,9 @@ class _EventFormPageState extends State<EventFormPage> {
 
   // 🔹 Lieux / sous-lieux / workers
   List<Map<String, dynamic>> _places = [];
+
   Map<String, List<String>> _subPlacesMap = {};
+  
   List<Map<String, dynamic>> _workers = [];
 
   // 🔹 Champs formulaire
@@ -34,7 +38,8 @@ class _EventFormPageState extends State<EventFormPage> {
   String? _selectedPlace;
   List<String> _selectedSubPlaces = [];
   String? _selectedTask;
-  bool _isWeeklyTask = true; // true = aucune pastille
+  bool _isWeeklyTask = true;
+  final bool _isReprogrammed = false;
   List<String> _selectedWorkers = [];
 
   late bool _isEditing;
@@ -174,40 +179,101 @@ class _EventFormPageState extends State<EventFormPage> {
   }
 
   Future<void> _submitForm() async {
-    if (_formKey.currentState?.validate() != true) return;
-    if (_selectedDate == null || _selectedPlace == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner une date et un lieu')),
-      );
-      return;
-    }
-    _formKey.currentState?.save();
-
-    final event = EventModel(
-      id: widget.eventId ?? '',
-      day: _selectedDate!,
-      timeSlot: _timeSlot,
-      place: _selectedPlace!,
-      subPlace: _selectedSubPlaces.toString(),
-      task: _selectedTask ?? '',
-      workerIds: _selectedWorkers,
-      createdAt: Timestamp.now(),
-      weekNumber: _getWeekNumber(_selectedDate!),
-      isWeeklyTask: _isWeeklyTask,
+  if (_formKey.currentState?.validate() != true) return;
+  if (_selectedDate == null || _selectedPlace == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Veuillez sélectionner une date et un lieu')),
     );
+    return;
+  }
+  _formKey.currentState?.save();
 
+  final event = EventModel(
+    id: widget.eventId ?? '',
+    day: _selectedDate!,
+    timeSlot: _timeSlot,
+    place: _selectedPlace!,
+    subPlace: _selectedSubPlaces.toString(),
+    task: _selectedTask ?? '',
+    workerIds: _selectedWorkers,
+    createdAt: Timestamp.now(),
+    weekNumber: _getWeekNumber(_selectedDate!),
+    isWeeklyTask: _isWeeklyTask,
+    isReprogrammed: _isReprogrammed,
+  );
+
+  try {
+    // 🔹 Cas : MODIFICATION
     if (_isEditing && widget.eventId != null) {
       await eventsRef.doc(widget.eventId).update(event.toFirestore());
+
+      // 🔹 Si non hebdomadaire, enregistrer aussi dans noWeeklyTasksMonitoring
+      if (!event.isWeeklyTask) {
+        final monitoring = NoWeeklyTaskMonitoringModel(
+          id: widget.eventId!,
+          day: event.day,
+          timeSlot: event.timeSlot,
+          place: event.place,
+          subPlace: event.subPlace,
+          task: event.task,
+          workerIds: event.workerIds,
+          createdAt: Timestamp.now(),
+          weekNumber: event.weekNumber,
+          isWeeklyTask: event.isWeeklyTask,
+          isReprogrammed: event.isReprogrammed,
+        );
+
+        await FirebaseFirestore.instance
+            .collection('noWeeklyTasksMonitoring')
+            .doc(widget.eventId)
+            .set(monitoring.toFirestore(), SetOptions(merge: true));
+      }
+
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Événement mis à jour ✅')));
-    } else {
-      await eventsRef.add(event.toFirestore());
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Événement mis à jour ✅')),
+      );
+    } 
+    // 🔹 Cas : CRÉATION
+    else {
+      final newEventRef = await eventsRef.add(event.toFirestore());
+
+      // 🔹 Si non hebdomadaire, dupliquer dans noWeeklyTasksMonitoring
+      if (!event.isWeeklyTask) {
+        final monitoring = NoWeeklyTaskMonitoringModel(
+          id: newEventRef.id,
+          day: event.day,
+          timeSlot: event.timeSlot,
+          place: event.place,
+          subPlace: event.subPlace,
+          task: event.task,
+          workerIds: event.workerIds,
+          createdAt: Timestamp.now(),
+          weekNumber: event.weekNumber,
+          isWeeklyTask: event.isWeeklyTask,
+          isReprogrammed: event.isReprogrammed,
+        );
+
+        await FirebaseFirestore.instance
+            .collection('noWeeklyTasksMonitoring')
+            .doc(newEventRef.id)
+            .set(monitoring.toFirestore());
+      }
+
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Événement créé ✅')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Événement créé ✅')),
+      );
     }
 
     Navigator.of(context).pop();
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Erreur lors de la sauvegarde : $e')),
+    );
   }
+}
 
   Future<void> _deleteEvent() async {
     if (!_isEditing || widget.eventId == null) return;
@@ -278,7 +344,14 @@ class _EventFormPageState extends State<EventFormPage> {
     final allTasks = [...tasksWidget.tasksWeekly, ...tasksWidget.tasksNoWeekly];
     final taskItems = allTasks.toSet().toList();
     if (_selectedTask != null && !taskItems.contains(_selectedTask)) taskItems.add(_selectedTask!);
+    // 🔹 On trie les lieux et sous-lieux avant d'afficher
+    final sortedPlaces = List<Map<String, dynamic>>.from(_places)
+      ..sort((a, b) => (a['name'] ?? '').toString().toLowerCase().compareTo((b['name'] ?? '').toString().toLowerCase()));
 
+    final sortedSubPlacesMap = {
+      for (var entry in _subPlacesMap.entries)
+        entry.key: (List<String>.from(entry.value)..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()))),
+    };
     return SafeArea(
       child: Scaffold(
         appBar: AppBar(
@@ -343,7 +416,7 @@ class _EventFormPageState extends State<EventFormPage> {
                 DropdownButtonFormField<String>(
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Lieu', border: OutlineInputBorder()),
-                  items: _places.map((p) => DropdownMenuItem<String>(value: p['name'], child: Text(p['name']))).toList(),
+                  items: sortedPlaces.map((p)=> DropdownMenuItem<String>(value: p['name'], child: Text(p['name']))).toList(),
                   initialValue: _selectedPlace,
                   onChanged: (v) {
                     setState(() {
@@ -361,7 +434,7 @@ class _EventFormPageState extends State<EventFormPage> {
                     decoration: const InputDecoration(labelText: 'Sous-lieux (optionnels)', border: OutlineInputBorder()),
                     child: Wrap(
                       spacing: 8,
-                      children: (_subPlacesMap[_selectedPlace!] ?? []).map((sub) {
+                      children: (sortedSubPlacesMap[_selectedPlace!] ?? []).map((sub) {
                         final isSelected = _selectedSubPlaces.contains(sub);
                         return FilterChip(
                           label: Text(sub),

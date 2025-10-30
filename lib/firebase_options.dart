@@ -40,50 +40,49 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyATcbi91ZpCsonCocvwrf2Y0wyyZ2Qi2vM',
-    appId: '1:756959569323:ios:fc140caacc92f985ae9eee',
-    messagingSenderId: '756959569323',
-    projectId: 'cleaning-schedule-14317',
-    storageBucket: 'cleaning-schedule-14317.firebasestorage.app',
-    iosBundleId: 'com.web82ORTA.cleaningSchedule',
-  );
-
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyATcbi91ZpCsonCocvwrf2Y0wyyZ2Qi2vM',
-    appId: '1:756959569323:ios:fc140caacc92f985ae9eee',
-    messagingSenderId: '756959569323',
-    projectId: 'cleaning-schedule-14317',
-    storageBucket: 'cleaning-schedule-14317.firebasestorage.app',
-    iosBundleId: 'com.web82ORTA.cleaningSchedule',
-  );
-
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAeRNV7-3WVUYD51arnjYniwslTXf-AknQ',
-    appId: '1:756959569323:web:0d5c6c057d87e427ae9eee',
-    messagingSenderId: '756959569323',
-    projectId: 'cleaning-schedule-14317',
-    authDomain: 'cleaning-schedule-14317.firebaseapp.com',
-    storageBucket: 'cleaning-schedule-14317.firebasestorage.app',
-    measurementId: 'G-LNNVN98BCL',
+    apiKey: 'AIzaSyCfyfcgdRwRiuvJAo9JABKUIddxH3RPZ4Y',
+    appId: '1:417326694072:web:cd6d83c98124b1c7e13e4d',
+    messagingSenderId: '417326694072',
+    projectId: 'cleaningscheduledemo',
+    authDomain: 'cleaningscheduledemo.firebaseapp.com',
+    storageBucket: 'cleaningscheduledemo.firebasestorage.app',
+    measurementId: 'G-11HF77TB7T',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCUehIlCS2XFMC1EHnU2mUQwKz40PH_81A',
-    appId: '1:756959569323:android:32e6f411df380364ae9eee',
-    messagingSenderId: '756959569323',
-    projectId: 'cleaning-schedule-14317',
-    storageBucket: 'cleaning-schedule-14317.firebasestorage.app',
+    apiKey: 'AIzaSyAvrBxoJN7CA3lnToKCoLWyA-bWqa_epF8',
+    appId: '1:417326694072:android:a542c272ad8a6515e13e4d',
+    messagingSenderId: '417326694072',
+    projectId: 'cleaningscheduledemo',
+    storageBucket: 'cleaningscheduledemo.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyAxCLXPPMtqzPFPyNXx-icDR7HKxdcOX_0',
+    appId: '1:417326694072:ios:53ad9fdcfd97faede13e4d',
+    messagingSenderId: '417326694072',
+    projectId: 'cleaningscheduledemo',
+    storageBucket: 'cleaningscheduledemo.firebasestorage.app',
+    iosBundleId: 'com.example.cleaningSchedule',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyAxCLXPPMtqzPFPyNXx-icDR7HKxdcOX_0',
+    appId: '1:417326694072:ios:53ad9fdcfd97faede13e4d',
+    messagingSenderId: '417326694072',
+    projectId: 'cleaningscheduledemo',
+    storageBucket: 'cleaningscheduledemo.firebasestorage.app',
+    iosBundleId: 'com.example.cleaningSchedule',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyAeRNV7-3WVUYD51arnjYniwslTXf-AknQ',
-    appId: '1:756959569323:web:893c3ea07a0e9d15ae9eee',
-    messagingSenderId: '756959569323',
-    projectId: 'cleaning-schedule-14317',
-    authDomain: 'cleaning-schedule-14317.firebaseapp.com',
-    storageBucket: 'cleaning-schedule-14317.firebasestorage.app',
-    measurementId: 'G-CMQEQEMN76',
+    apiKey: 'AIzaSyCfyfcgdRwRiuvJAo9JABKUIddxH3RPZ4Y',
+    appId: '1:417326694072:web:65024f2d271df7bfe13e4d',
+    messagingSenderId: '417326694072',
+    projectId: 'cleaningscheduledemo',
+    authDomain: 'cleaningscheduledemo.firebaseapp.com',
+    storageBucket: 'cleaningscheduledemo.firebasestorage.app',
+    measurementId: 'G-0RXRT2JE6W',
   );
-
 }

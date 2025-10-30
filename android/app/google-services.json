@@ -1,51 +1,26 @@
 {
   "project_info": {
-    "project_number": "756959569323",
-    "project_id": "cleaning-schedule-14317",
-    "storage_bucket": "cleaning-schedule-14317.firebasestorage.app"
+    "project_number": "417326694072",
+    "project_id": "cleaningscheduledemo",
+    "storage_bucket": "cleaningscheduledemo.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:756959569323:android:32e6f411df380364ae9eee",
+        "mobilesdk_app_id": "1:417326694072:android:a542c272ad8a6515e13e4d",
         "android_client_info": {
-          "package_name": "com.web82ORTA.cleaningschedule"
+          "package_name": "com.web82ORTA.cleaningscheduledemo"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "756959569323-nvcgaqhriqpkt5vleffqjjgv1jfmcp2s.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.web82ORTA.cleaningschedule",
-            "certificate_hash": "dd28c7b4e2d4cf3631f936e82f063f67a488d9da"
-          }
-        },
-        {
-          "client_id": "756959569323-4hvb2ssq3hov4bq56kqfdil5p1s7jctt.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCUehIlCS2XFMC1EHnU2mUQwKz40PH_81A"
+          "current_key": "AIzaSyAvrBxoJN7CA3lnToKCoLWyA-bWqa_epF8"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "756959569323-4hvb2ssq3hov4bq56kqfdil5p1s7jctt.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "756959569323-f9bcud3qlbs2p0ssbppgeo6bkvn79a9o.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.web82ORTA.cleaningschedule"
-              }
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
