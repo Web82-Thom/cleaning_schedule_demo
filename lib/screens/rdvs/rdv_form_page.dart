@@ -231,7 +231,9 @@ class _RdvFormPageState extends State<RdvFormPage> {
                       );
 
                       await _controller.saveRdv(context, rdv);
-                      if (context.mounted) Navigator.pop(context, true);
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (context.mounted) Navigator.pop(context, true);
+                      });
                     }
                   },
                   child: const Text('Enregistrer'),

@@ -39,6 +39,35 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
     });
   }
 
+  //---HELPERS---//
+    // Palette fixe pour des couleurs douces et lisibles
+  final List<MaterialColor> _palette = const [
+    Colors.blue, Colors.green, Colors.orange, Colors.teal, Colors.indigo,
+    Colors.cyan, Colors.amber, Colors.lightGreen, Colors.deepOrange, Colors.pink,
+    Colors.lime, Colors.deepPurple, Colors.brown, Colors.blueGrey, Colors.red,
+  ];
+
+  final Map<String, Color> _placeColorCache = {};
+
+  // Hash FNV-1a 32-bit (déterministe)
+  int _stableHash(String s) {
+    int h = 0x811C9DC5; // 2166136261
+    const int prime = 0x01000193; // 16777619
+    for (final codeUnit in s.codeUnits) {
+      h ^= codeUnit;
+      h = (h * prime) & 0xFFFFFFFF;
+    }
+    return h;
+  }
+
+  Color _colorForPlace(String place) {
+    if (_placeColorCache.containsKey(place)) return _placeColorCache[place]!;
+    final idx = _stableHash(place).abs() % _palette.length;
+    final color = _palette[idx].shade200;
+    _placeColorCache[place] = color;
+    return color;
+  }
+
   // ---------- Semaine ----------
   DateTime _getStartOfWeek(DateTime date) => date.subtract(Duration(days: date.weekday - 1));
 
@@ -87,10 +116,27 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
     return ids.map((id) => _workersMap[id] ?? 'Inconnu').join(', ');
   }
 
-  //------------ construction scroll et chevron dans les cellules
-  Widget buildScrollableCell(List<Map<String, dynamic>> events) {
+   //------------ construction scroll et chevron dans les cellules
+ Widget buildScrollableCell(List<Map<String, dynamic>> events) {
   final scrollController = ScrollController();
   bool showChevron = false;
+
+  // 🔹 1. Grouper les événements par lieu
+  final Map<String, List<Map<String, dynamic>>> groupedByPlace = {};
+  for (var e in events) {
+    final place = e['place'] ?? 'Inconnu';
+    groupedByPlace.putIfAbsent(place, () => []).add(e);
+  }
+
+  // 🔹 2. Trier les lieux par ordre alphabétique (optionnel)
+  final sortedPlaces = groupedByPlace.keys.toList()..sort();
+
+  // 🔹 3. Fonction pour générer une couleur stable à partir du nom du lieu
+  Color getColorForPlace(String place) {
+    final base = place.hashCode.abs();
+    final color = Colors.primaries[base % Colors.primaries.length];
+    return color.shade200;
+  }
 
   return StatefulBuilder(
     builder: (context, setInnerState) {
@@ -113,7 +159,25 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
             trackVisibility: true,
             child: ListView(
               controller: scrollController,
-              children: events.map((e) => buildEventCell(e)).toList(),
+              children: [
+                for (final place in sortedPlaces) ...[
+                  // 🔸 Liste des événements de ce lieu
+                  ...groupedByPlace[place]!.map((e) {
+                    // on peut réutiliser la même couleur pour cohérence
+                    final color = getColorForPlace(place);
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      margin: const EdgeInsets.only(bottom: 6),
+                      child: buildEventCell(e),
+                    );
+                  }),
+
+                  const Divider(height: 10),
+                ],
+              ],
             ),
           ),
           if (showChevron)
@@ -136,13 +200,16 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
 }
 
   //------------ construction des cellules ----------------
-  Widget buildEventCell(Map<String, dynamic> e) {
+ Widget buildEventCell(Map<String, dynamic> e) {
   final sub = formatSubPlace(e['subPlace']);
   final workerNames = getWorkerNames(e['workerIds']);
   final place = e['place'] ?? 'Inconnu';
-  final baseColor = e['isWeeklyTask'] == true
-      ? Colors.purple.shade100
-      : Colors.primaries[place.hashCode % Colors.primaries.length].shade200;
+
+  // Couleur cohérente par lieu
+  final baseColor = _colorForPlace(place);
+
+  // Pastille visible uniquement si isWeeklyTask == false
+  final bool showDot = e['isWeeklyTask'] == false;
 
   return InkWell(
     onTap: () => Navigator.push(
@@ -153,7 +220,7 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: baseColor,
+        color: baseColor.withOpacity(0.9),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: Colors.black12),
       ),
@@ -162,9 +229,16 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
         children: [
           Row(
             children: [
-              Expanded(child: Text('• $place', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-              if (e['isWeeklyTask'] == false)
-                Container(width: 10, height: 10, margin: const EdgeInsets.only(left: 4), decoration: const BoxDecoration(color: Colors.purple, shape: BoxShape.circle)),
+              Expanded(
+                child: Text('• $place',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ),
+              if (showDot)
+                Container(
+                  width: 10, height: 10, margin: const EdgeInsets.only(left: 4),
+                  decoration: const BoxDecoration(color: Colors.purple, shape: BoxShape.circle),
+                ),
             ],
           ),
           if (sub.isNotEmpty) Text(' - $sub', style: const TextStyle(fontSize: 12, color: Colors.black87)),

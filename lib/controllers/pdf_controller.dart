@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:io' show File, Directory;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +8,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
+
+import '../utils/pdf_saver/save_or_download_pdf.dart'; // 👈 remplace dart:html
 
 class PdfController extends ChangeNotifier {
   /// ______________________________________
@@ -404,38 +406,56 @@ class PdfController extends ChangeNotifier {
     const int maxEventsPerCell = 6;
 
     pw.Widget buildEventList(List<Map<String, dynamic>> list, int startIndex) {
-      if (list.isEmpty) return pw.Text('—', style: const pw.TextStyle(color: PdfColors.grey700, fontSize: 10));
+      if (list.isEmpty) {
+        return pw.Text('—',
+            style: const pw.TextStyle(color: PdfColors.grey700, fontSize: 10));
+      }
       final sublist = list.skip(startIndex).take(maxEventsPerCell).toList();
 
       return pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: sublist.map((e) {
-          final workers = (e['workerIds'] as List).map((id) => workersMap[id] ?? 'Inconnu').join(', ');
+          final workers = (e['workerIds'] as List)
+              .map((id) => workersMap[id] ?? 'Inconnu')
+              .join(', ');
 
           String subPlaceText = '';
           if (e['subPlace'] != null) {
             if (e['subPlace'] is List) {
-              subPlaceText = (e['subPlace'] as List).whereType<String>().join(', ');
+              subPlaceText =
+                  (e['subPlace'] as List).whereType<String>().join(', ');
               if (subPlaceText.isNotEmpty) subPlaceText = ' ($subPlaceText)';
-            } else if (e['subPlace'] is String && e['subPlace'].trim().isNotEmpty) {
+            } else if (e['subPlace'] is String &&
+                e['subPlace'].trim().isNotEmpty) {
               subPlaceText = ' (${e['subPlace']})';
             }
           }
 
-          final taskText = (e['task'] != null && e['task'].toString().isNotEmpty) ? ' • ${e['task']}' : '';
+          final taskText = (e['task'] != null && e['task'].toString().isNotEmpty)
+              ? ' • ${e['task']}'
+              : '';
 
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text(
                 e['place'] ?? 'Lieu inconnu',
-                style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blue800, fontSize: 11),
+                style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.blue800,
+                    fontSize: 11),
               ),
               if (subPlaceText.isNotEmpty)
-                pw.Text(subPlaceText, style: const pw.TextStyle(color: PdfColors.indigo, fontSize: 10)),
+                pw.Text(subPlaceText,
+                    style: const pw.TextStyle(
+                        color: PdfColors.indigo, fontSize: 10)),
               if (taskText.isNotEmpty)
-                pw.Text(taskText, style: const pw.TextStyle(color: PdfColors.deepPurple, fontSize: 10)),
-              pw.Text('Travailleurs : $workers', style: const pw.TextStyle(color: PdfColors.grey800, fontSize: 9)),
+                pw.Text(taskText,
+                    style: const pw.TextStyle(
+                        color: PdfColors.deepPurple, fontSize: 10)),
+              pw.Text('Travailleurs : $workers',
+                  style: const pw.TextStyle(
+                      color: PdfColors.grey800, fontSize: 9)),
               pw.SizedBox(height: 4),
             ],
           );
@@ -466,29 +486,42 @@ class PdfController extends ChangeNotifier {
                 style: pw.TextStyle(
                   fontSize: 18,
                   fontWeight: pw.FontWeight.bold,
-                  color: slot == 'morning' ? PdfColors.orange800 : PdfColors.teal800,
+                  color: slot == 'morning'
+                      ? PdfColors.orange800
+                      : PdfColors.teal800,
                 ),
               ),
               pw.SizedBox(height: 10),
               pw.Table(
                 border: pw.TableBorder.all(color: PdfColors.grey, width: 0.5),
-                columnWidths: {for (int i = 0; i < days.length; i++) i: const pw.FlexColumnWidth()},
+                columnWidths: {
+                  for (int i = 0; i < days.length; i++)
+                    i: const pw.FlexColumnWidth()
+                },
                 children: [
                   pw.TableRow(
                     children: days.map((day) {
-                      final label = DateFormat('EEEE', 'fr_FR').format(day).toUpperCase();
+                      final label =
+                          DateFormat('EEEE', 'fr_FR').format(day).toUpperCase();
                       return pw.Padding(
                         padding: const pw.EdgeInsets.all(4),
-                        child: pw.Center(child: pw.Text(label, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.green, fontSize: 12))),
+                        child: pw.Center(
+                            child: pw.Text(label,
+                                style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.green,
+                                    fontSize: 12))),
                       );
                     }).toList(),
                   ),
                   pw.TableRow(
                     children: days.map((day) {
-                      final key = '${DateFormat('yyyy-MM-dd').format(day)}_$slot';
+                      final key =
+                          '${DateFormat('yyyy-MM-dd').format(day)}_$slot';
                       return pw.Padding(
                         padding: const pw.EdgeInsets.all(4),
-                        child: buildEventList(grouped[key] ?? [], chunkIndex * maxEventsPerCell),
+                        child: buildEventList(
+                            grouped[key] ?? [], chunkIndex * maxEventsPerCell),
                       );
                     }).toList(),
                   ),
@@ -500,14 +533,33 @@ class PdfController extends ChangeNotifier {
       }
     }
 
-    final dir = await getApplicationDocumentsDirectory();
-    final fileName = 'planning_week_$weekNumber.pdf';
-    final file = File('${dir.path}/scheduleWeeklyCategory/$fileName');
-    if (!await file.parent.exists()) await file.parent.create(recursive: true);
-    await file.writeAsBytes(await pdf.save());
-    await OpenFilex.open(file.path);
+    final pdfBytes = await pdf.save();
+    await saveOrDownloadPdf(pdfBytes, 'planning_week_$weekNumber.pdf');
   }
-  
+ 
+  // 🔹 Méthode interne pour gérer Web & Mobile
+  // static Future<void> _saveOrDownloadPdf(
+  //     Uint8List pdfBytes, String fileName) async {
+  //   if (kIsWeb) {
+  //     // 💻 Web : téléchargement via package:web
+  //     final blob = web.Blob([pdfBytes.toJS]
+  //         as JSArray<web.BlobPart>, web.BlobPropertyBag(type: 'application/pdf'));
+  //     final url = web.URL.createObjectURL(blob);
+  //     final anchor = web.HTMLAnchorElement()
+  //       ..href = url
+  //       ..download = fileName;
+  //     anchor.click();
+  //     web.URL.revokeObjectURL(url);
+  //   } else {
+  //     // 📱 Mobile/Desktop : enregistrement + ouverture
+  //     final dir = await getApplicationDocumentsDirectory();
+  //     final file = File('${dir.path}/scheduleWeeklyCategory/$fileName');
+  //     if (!await file.parent.exists()) await file.parent.create(recursive: true);
+  //     await file.writeAsBytes(pdfBytes);
+  //     await OpenFilex.open(file.path);
+  //   }
+  // }
+ 
   ///---------Float message for created PDF---------
   void showFloatingMessage(BuildContext context, String message) {
     final overlay = Overlay.of(context);

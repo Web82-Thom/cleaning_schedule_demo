@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 
 class ConsumableWidget extends ChangeNotifier{
   List<String> products = [
-    'FV Lave vaiselle prokliks brillant Rouge',
-    'FV Lave vaiselle prokliks energy Bleu',
+    'Lave vaiselle prokliks brillant Rouge',
+    'Lave vaiselle prokliks energy Bleu',
     'Détergent désinfectant Rose \'LE VRAI\'',
     'Décapant',
     'Dosettes',
-    'FH Lave +', 
-    'FH Rince +',
+    'Lave +', 
+    'Rince +',
   ];
 
   List<String> cars = [
@@ -18,27 +18,26 @@ class ConsumableWidget extends ChangeNotifier{
 
   // foyer de vie
   List<String> homeOfLife= [
-    'Caisse',
-    'T5'
+    'Caisses',
+    'Palettes'
   ];
 
   // les transferts
   List<String> transfer= [
-    'Foyer de vie',
-    'Foyer d\'hébergement',
+    'Mairie',
+    'Château',
   ];
 
   List<String> villas= [
-    'Pousiniès',
-    'T4',
-    'Appartement Bruno',
-    'Appartement Kathleen',
-    'Appartement Nicolas',
-    'Gamot',
-    'Amsterdam',
+    'Appartement T1',
+    'Appartement T2',
+    'Appartement T3',
+    'Appartement T4',
+    'Maison Jaune',
+    'Manoir',
   ];
 
   List<String> otherPlaces= [
-    'Salle externe',
+    'Salle des fêtes',
   ];
 }
