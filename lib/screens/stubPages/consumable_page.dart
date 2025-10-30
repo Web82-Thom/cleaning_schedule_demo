@@ -30,17 +30,17 @@ class ConsumablePage extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
 
     // Adapter le nombre de colonnes selon la taille de l'écran
-    int crossAxisCount = 2;
+    int crossAxisCount = 3;
     double childAspectRatio = 1.0;
 
     if (screenWidth > 1200) {
-      crossAxisCount = 4;
+      crossAxisCount = 6;
       childAspectRatio = 1.3;
     } else if (screenWidth > 800) {
-      crossAxisCount = 3;
+      crossAxisCount = 4;
       childAspectRatio = 1.2;
     } else if (screenWidth > 500) {
-      crossAxisCount = 2;
+      crossAxisCount = 3;
       childAspectRatio = 1.1;
     }
 
