@@ -160,20 +160,32 @@ class _RdvFormPageState extends State<RdvFormPage> {
                     border: OutlineInputBorder(),
                   ),
                   isExpanded: true,
-                  items: workersMap.entries
-                      .map(
-                        (e) => DropdownMenuItem<String>(
-                          value: e.key,
-                          child: Text(e.value),
-                        ),
-                      )
-                      .toList(),
-                  initialValue: isTeam ? null : selectedWorkerId,
+
+                  // ✅ Correction : vérifie que la valeur existe dans la liste
+                  initialValue: (!isTeam &&
+                          workersMap.containsKey(selectedWorkerId))
+                      ? selectedWorkerId
+                      : null,
+
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: '',
+                      child: Text('Aucun / Sélectionner'),
+                    ),
+                    ...workersMap.entries.map(
+                      (e) => DropdownMenuItem<String>(
+                        value: e.key,
+                        child: Text(e.value),
+                      ),
+                    ),
+                  ],
+
                   onChanged: isTeam
                       ? null
                       : (value) {
                           setState(() => selectedWorkerId = value);
                         },
+
                   validator: (value) {
                     if (!isTeam &&
                         selectedMonitorIds.isEmpty &&
@@ -183,6 +195,7 @@ class _RdvFormPageState extends State<RdvFormPage> {
                     return null;
                   },
                 ),
+
                 const SizedBox(height: 16),
 
                 // 🎓 Moniteurs associés
