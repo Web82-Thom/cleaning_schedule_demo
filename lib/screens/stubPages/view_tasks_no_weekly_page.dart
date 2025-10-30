@@ -60,63 +60,62 @@ class ViewTasksNoWeeklyPage extends StatelessWidget {
               const SizedBox(height: 8),
               // 🔹 Grille des tâches
               Expanded(
-  child: GridView.builder(
-    padding: const EdgeInsets.all(8),
-    gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-      maxCrossAxisExtent: kIsWeb ? 180 : 220, // 💻 sur web : cartes plus petites
-      crossAxisSpacing: 8,
-      mainAxisSpacing: 8,
-      childAspectRatio: kIsWeb ? 1.2 : 1, // équilibre la hauteur sur web
-    ),
-    itemCount: tasksWidget.tasksNoWeekly.length,
-    itemBuilder: (context, index) {
-      final task = tasksWidget.tasksNoWeekly[index];
+                child: GridView.builder(
+                  padding: const EdgeInsets.all(8),
+                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: kIsWeb ? 180 : 220, // 💻 sur web : cartes plus petites
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: kIsWeb ? 1.2 : 1, // équilibre la hauteur sur web
+                  ),
+                  itemCount: tasksWidget.tasksNoWeekly.length,
+                  itemBuilder: (context, index) {
+                    final task = tasksWidget.tasksNoWeekly[index];
 
-      final colors = [
-        Colors.red.shade100,
-        Colors.blue.shade100,
-        Colors.green.shade100,
-        Colors.orange.shade100,
-        Colors.purple.shade100,
-        Colors.teal.shade100,
-        Colors.yellow.shade100,
-      ];
-      final bgColor = colors[index % colors.length];
+                    final colors = [
+                      Colors.red.shade100,
+                      Colors.blue.shade100,
+                      Colors.green.shade100,
+                      Colors.orange.shade100,
+                      Colors.purple.shade100,
+                      Colors.teal.shade100,
+                      Colors.yellow.shade100,
+                    ];
+                    final bgColor = colors[index % colors.length];
 
-      return InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TableDateTaskNoWeeklyWidget(taskName: task),
-            ),
-          );
-        },
-        child: Card(
-          elevation: 3,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          color: bgColor,
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                task,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                    return InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TableDateTaskNoWeeklyWidget(taskName: task),
+                          ),
+                        );
+                      },
+                      child: Card(
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        color: bgColor,
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              task,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
-            ),
-          ),
-        ),
-      );
-    },
-  ),
-),
-
             ],
           ),
         ),
