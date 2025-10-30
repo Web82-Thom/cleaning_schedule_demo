@@ -46,6 +46,7 @@ class _TableDateTaskNoWeeklyWidgetState
         return {
           'task': (data['task'] ?? '').toString(),
           'place': (data['place'] ?? '').toString(),
+          'subPlace': (data['subPlace'] ?? '').toString(),
           'isWeeklyTask': (data['isWeeklyTask'] ?? false) as bool,
           'day': date,
         };
@@ -105,7 +106,7 @@ class _TableDateTaskNoWeeklyWidgetState
                       elevation: 1,
                       child: ListTile(
                         title: Text(
-                          e['place'] ?? '',
+                          '${e['place']}- ${e['subPlace']}',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
