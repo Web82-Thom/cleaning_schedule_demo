@@ -43,6 +43,7 @@ flutter:
 
   assets:
     - assets/icon/app_icon.png
+    - assets/documentations
 
 # 🚀 Configuration du package flutter_launcher_icons
 flutter_launcher_icons:
