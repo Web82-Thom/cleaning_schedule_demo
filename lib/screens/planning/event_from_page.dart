@@ -1,10 +1,10 @@
-import 'package:cleaning_schedule/main.dart';
-import 'package:cleaning_schedule/models/no_weekly_task_monitoring_model.dart';
-import 'package:cleaning_schedule/widgets/tasks_widget.dart';
+import 'package:cleaning_schedule_demo/main.dart';
+import 'package:cleaning_schedule_demo/models/no_weekly_task_monitoring_model.dart';
+import 'package:cleaning_schedule_demo/widgets/tasks_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:cleaning_schedule/models/event_model.dart';
+import 'package:cleaning_schedule_demo/models/event_model.dart';
 
 class EventFormPage extends StatefulWidget {
   final String? eventId; // null = création, non-null = édition
@@ -128,48 +128,78 @@ class _EventFormPageState extends State<EventFormPage> {
   }
 
   Future<void> _loadWorkers() async {
-    final snapshot = await workersRef.where('active', isEqualTo: true).get();
+  final snapshot = await workersRef.where('active', isEqualTo: true).get();
 
-    List<Map<String, dynamic>> workersList = snapshot.docs.map((doc) {
-      final data = doc.data() as Map<String, dynamic>;
-      return {
-        'id': doc.id,
-        'name': '${data['firstName']} ${data['name']}',
-        'isAbcent': data['isAbcent'] ?? false,
-        'workSchedule': data['workSchedule'] ?? {},
-      };
-    }).toList();
+  List<Map<String, dynamic>> workersList = snapshot.docs.map((doc) {
+    final data = doc.data() as Map<String, dynamic>;
 
-    // 🔹 Vérifie combien de fois chaque worker est occupé dans ce créneau
-    Map<String, int> busyCount = {};
-    if (_selectedDate != null) {
-      final eventsSnapshot = await eventsRef.where('day', isEqualTo: Timestamp.fromDate(_selectedDate!)).get();
-      for (var doc in eventsSnapshot.docs) {
-        if (_isEditing && doc.id == widget.eventId) continue;
-        final data = doc.data() as Map<String, dynamic>;
-        final timeSlot = data['timeSlot'] ?? '';
-        if (timeSlot == _timeSlot) {
-          final workerIds = List<String>.from(data['workerIds'] ?? []);
-          for (var wid in workerIds) {
-            busyCount[wid] = (busyCount[wid] ?? 0) + 1;
+    // 🔹 Calcul "en congé" pour la date sélectionnée
+    bool isOnLeave = false;
+    final congesRaw = data['conges'];
+
+    if (_selectedDate != null && congesRaw is List) {
+      final d0 = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day);
+
+      for (final item in congesRaw) {
+        if (item is Map<String, dynamic>) {
+          final tsStart = item['start'] as Timestamp?;
+          final tsEnd = item['end'] as Timestamp?;
+          if (tsStart == null || tsEnd == null) continue;
+
+          final start = tsStart.toDate();
+          final end = tsEnd.toDate();
+          final dStart = DateTime(start.year, start.month, start.day);
+          final dEnd = DateTime(end.year, end.month, end.day);
+
+          if (!d0.isBefore(dStart) && !d0.isAfter(dEnd)) {
+            isOnLeave = true;
+            break;
           }
         }
       }
     }
 
-    workersList = workersList.map((w) {
-      final busyTimes = busyCount[w['id']] ?? 0;
-      return {
-        ...w,
-        'busyCount': busyTimes,
-        'isBusy': busyTimes > 0,
-      };
-    }).toList();
+    return {
+      'id': doc.id,
+      'name': '${data['firstName']} ${data['name']}',
+      'isAbcent': data['isAbcent'] ?? false,
+      'workSchedule': data['workSchedule'] ?? {},
+      'isOnLeave': isOnLeave, // 🔸 nouveau champ
+    };
+  }).toList();
 
-    workersList.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
-    if (!mounted) return;
-    setState(() => _workers = workersList);
+  // 🔹 Vérifie combien de fois chaque worker est occupé dans ce créneau
+  Map<String, int> busyCount = {};
+  if (_selectedDate != null) {
+    final eventsSnapshot = await eventsRef
+        .where('day', isEqualTo: Timestamp.fromDate(_selectedDate!))
+        .get();
+    for (var doc in eventsSnapshot.docs) {
+      if (_isEditing && doc.id == widget.eventId) continue;
+      final data = doc.data() as Map<String, dynamic>;
+      final timeSlot = data['timeSlot'] ?? '';
+      if (timeSlot == _timeSlot) {
+        final workerIds = List<String>.from(data['workerIds'] ?? []);
+        for (var wid in workerIds) {
+          busyCount[wid] = (busyCount[wid] ?? 0) + 1;
+        }
+      }
+    }
   }
+
+  workersList = workersList.map((w) {
+    final busyTimes = busyCount[w['id']] ?? 0;
+    return {
+      ...w,
+      'busyCount': busyTimes,
+      'isBusy': busyTimes > 0,
+    };
+  }).toList();
+
+  workersList.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
+  if (!mounted) return;
+  setState(() => _workers = workersList);
+}
 
   int _getWeekNumber(DateTime date) {
     final firstDayOfYear = DateTime(date.year, 1, 1);
@@ -364,6 +394,8 @@ class _EventFormPageState extends State<EventFormPage> {
                 onPressed: _deleteEvent,
               ),
           ],
+          backgroundColor: Colors.indigo,
+          foregroundColor: Colors.white ,
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -463,7 +495,7 @@ class _EventFormPageState extends State<EventFormPage> {
                   items: [
                     const DropdownMenuItem<String>(
                       value: '',
-                      child: Text('Aucune tâche', style: TextStyle(color: Colors.grey)),
+                      child: Text('Aucune tâche', style: TextStyle(color: Colors.black)),
                     ),
                     const DropdownMenuItem<String>(
                       enabled: false,
@@ -493,16 +525,19 @@ class _EventFormPageState extends State<EventFormPage> {
                   children: [
                     const Text('Assigné aux travailleurs', style: TextStyle(fontWeight: FontWeight.bold)),
                     ..._workers.map((w) {
-                      final isAbcent = w['isAbcent'] ?? false;
-                      final workerKey = GlobalKey();
-                      final dayName = _selectedDate != null
-                          ? DateFormat('EEEE', 'fr_FR').format(_selectedDate!)
-                          : '';
-                      final workDay = w['workSchedule']?[dayName.toLowerCase()] ?? {};
-                      final worksThisSlot = _timeSlot == 'morning'
-                          ? (workDay['worksMorning'] ?? true)
-                          : (workDay['worksAfternoon'] ?? true);
-                      final hasSpecialSchedule = workDay['endTime'] != null && workDay['endTime'].toString().isNotEmpty;
+  final isAbcent = w['isAbcent'] ?? false;
+  final isOnLeave = w['isOnLeave'] ?? false; // 🔸 nouveau
+  final workerKey = GlobalKey();
+  final dayName = _selectedDate != null
+      ? DateFormat('EEEE', 'fr_FR').format(_selectedDate!)
+      : '';
+  final workDay = w['workSchedule']?[dayName.toLowerCase()] ?? {};
+  final worksThisSlot = _timeSlot == 'morning'
+      ? (workDay['worksMorning'] ?? true)
+      : (workDay['worksAfternoon'] ?? true);
+  final hasSpecialSchedule =
+      workDay['endTime'] != null && workDay['endTime'].toString().isNotEmpty;
+
 
                       return GestureDetector(
                         onLongPress: () async {
@@ -542,10 +577,14 @@ class _EventFormPageState extends State<EventFormPage> {
                                       child: Text(
                                         w['name'],
                                         style: TextStyle(
-                                          color: (!worksThisSlot || isAbcent || (w['busyCount'] ?? 0) > 0) ? Colors.grey : null,
-                                          decoration: (w['busyCount'] ?? 0) > 0 ? TextDecoration.lineThrough : null,
-                                          decorationThickness: (1.0 + ((w['busyCount'] ?? 0) - 1) * 0.7).clamp(1.0, 4.0),
-                                        ),
+  color: (!worksThisSlot || isAbcent || isOnLeave || (w['busyCount'] ?? 0) > 0)
+      ? Colors.grey
+      : null,
+  decoration: (w['busyCount'] ?? 0) > 0 ? TextDecoration.lineThrough : null,
+  decorationThickness:
+      (1.0 + ((w['busyCount'] ?? 0) - 1) * 0.7).clamp(1.0, 4.0),
+),
+
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -584,26 +623,24 @@ class _EventFormPageState extends State<EventFormPage> {
                             ],
                           ),
                           value: _selectedWorkers.contains(w['id']),
-                          onChanged: (!worksThisSlot || isAbcent) ?
-                          null:  // worker ne peut pas travailler → désactivé
-                          (v) {
-                            setState(() {
-                              final isBusy = w['isBusy'] ?? false;
+                          onChanged: (!worksThisSlot || isAbcent || isOnLeave)
+    ? null // 🔒 ne peut pas être sélectionné
+    : (v) {
+        setState(() {
+          final isBusy = w['isBusy'] ?? false;
 
-                              if (v == true) {
-                                // Ajouter seulement si le worker n'est pas occupé
-                                if (!isBusy && !_selectedWorkers.contains(w['id'])) {
-                                  _selectedWorkers.add(w['id']);
-                                }
-                              } else {
-                                // Toujours possible de désélectionner
-                                _selectedWorkers.remove(w['id']);
-                              }
+          if (v == true) {
+            if (!isBusy && !_selectedWorkers.contains(w['id'])) {
+              _selectedWorkers.add(w['id']);
+            }
+          } else {
+            _selectedWorkers.remove(w['id']);
+          }
 
-                              // Mise à jour de la pastille violette après toute modification
-                              _updateWeeklyTaskStatus();
-                            });
-                          },
+          _updateWeeklyTaskStatus();
+        });
+      },
+
 
                         ),
                       );

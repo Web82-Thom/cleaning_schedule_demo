@@ -1,6 +1,7 @@
-import 'dart:io' show File, Directory;
+import 'dart:io';
+import 'package:cleaning_schedule_demo/utils/pdf_saver/save_or_download_pdf.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -10,14 +11,12 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../utils/pdf_saver/save_or_download_pdf.dart'; // 👈 remplace dart:html
-
 class PdfController extends ChangeNotifier {
   /// ______________________________________
   ///|--------Function generaliser----------|
   ///|______________________________________|
   /// 🔹 Génère un PDF regroupant toutes les prestations non hebdomadaires
-  Future<void> generateFullReport(context) async {
+  Future<void> generateFullReport(BuildContext context) async {
     try {
       final pdf = pw.Document();
       final now = DateTime.now();
@@ -50,7 +49,7 @@ class PdfController extends ChangeNotifier {
                 pw.SizedBox(height: 10),
                 pw.Text(
                   'Généré le $formattedDate',
-                  style: const pw.TextStyle(fontSize: 14),
+                  style: const pw.TextStyle(fontSize: 14,),
                 ),
               ],
             ),
@@ -88,9 +87,12 @@ class PdfController extends ChangeNotifier {
           grouped.putIfAbsent(task, () => []);
           grouped[task]!.add({
             'place': place,
+            // string affichée
             'day': date != null
                 ? DateFormat('dd MMM yyyy', 'fr_FR').format(date)
                 : '—',
+            // 🔹 on garde aussi la vraie date pour trier
+            'rawDate': date,
           });
         }
 
@@ -130,21 +132,35 @@ class PdfController extends ChangeNotifier {
                   ),
                 ),
                 pw.SizedBox(height: 6),
-                pw.Table.fromTextArray(
-                  headers: ['Lieu', 'Date'],
-                  headerStyle: pw.TextStyle(
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.white,
-                  ),
-                  headerDecoration:
-                      const pw.BoxDecoration(color: PdfColors.indigo),
-                  cellAlignment: pw.Alignment.centerLeft,
-                  cellPadding:
-                      const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-                  data: grouped[task]!
-                      .map((e) => [e['place'], e['day']])
-                      .toList(),
-                ),
+
+                // 🔹 On copie la liste pour cette tâche et on la trie par date (récent → ancien)
+                () {
+                  final entries = [...grouped[task]!];
+                  entries.sort((a, b) {
+                    final da = a['rawDate'] as DateTime?;
+                    final db = b['rawDate'] as DateTime?;
+                    if (da == null && db == null) return 0;
+                    if (da == null) return 1; // les sans date en bas
+                    if (db == null) return -1;
+                    return db.compareTo(da); // récent → ancien
+                  });
+
+                  return pw.TableHelper.fromTextArray(
+                    headers: ['Lieu', 'Date'],
+                    headerStyle: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white,
+                    ),
+                    headerDecoration:
+                        const pw.BoxDecoration(color: PdfColors.indigo),
+                    cellAlignment: pw.Alignment.centerLeft,
+                    cellPadding:
+                        const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+                    data: entries
+                        .map((e) => [e['place'], e['day']])
+                        .toList(),
+                  );
+                }(),
                 pw.Divider(),
               ],
             ],
@@ -152,20 +168,15 @@ class PdfController extends ChangeNotifier {
         );
       }
 
-      // 🔹 Sauvegarde du PDF
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/rapport_prestations_non_hebdo.pdf');
-      await file.writeAsBytes(await pdf.save());
-
-      // 🔹 Ouvrir le PDF
-      await OpenFilex.open(file.path);
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Rapport PDF généré avec succès'),
-          ),
-        );
+      final pdfBytes = await pdf.save();
+      // ✅ Différencier web et mobile
+      if (kIsWeb) {
+        await saveOrDownloadPdf(pdfBytes, 'rapport_prestations.pdf');
+      } else {
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/rapport_prestations.pdf');
+        await file.writeAsBytes(pdfBytes);
+        await OpenFilex.open(file.path);
       }
     } catch (e) {
       if (context.mounted) {
@@ -177,7 +188,7 @@ class PdfController extends ChangeNotifier {
       }
     }
   }
-  
+
   /// 🔹 Partage le rapport PDF complet des tâches non hebdomadaires
   Future<void> shareReportPdf({
     required BuildContext context,
@@ -579,35 +590,35 @@ class PdfController extends ChangeNotifier {
   /// Génère un PDF pour un produit
   Future<void> generateListProductByNamePdf(
     String productName, List<Map<String, dynamic>> records) async {
-    final pdf = pw.Document();
+  final pdf = pw.Document();
 
-    pdf.addPage(
-      pw.Page(
-        build: (context) {
-          return pw.Column(
-            children: [
-              pw.Text(
-                'Relevés pour $productName',
-                style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
-              ),
-              pw.SizedBox(height: 20),
-              pw.TableHelper.fromTextArray(
-                headers: ['Date', 'Lieu'],
-                data: records.map((r) => [r['date'] ?? '', r['place'] ?? '']).toList(),
-                cellAlignment: pw.Alignment.centerLeft, // optionnel, style des cellules
-                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                headerDecoration: pw.BoxDecoration(color: PdfColors.blue200),
-                cellHeight: 25,
-              ),
-            ],
-          );
-        },
-      ),
-    );
+  pdf.addPage(
+    pw.Page(
+      build: (context) {
+        return pw.Column(
+          children: [
+            pw.Text(
+              'Relevés pour $productName',
+              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 20),
+            pw.TableHelper.fromTextArray(
+              headers: ['Date', 'Lieu'],
+              data: records.map((r) => [r['date'] ?? '', r['place'] ?? '']).toList(),
+              cellAlignment: pw.Alignment.centerLeft, // optionnel, style des cellules
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              headerDecoration: pw.BoxDecoration(color: PdfColors.blue200),
+              cellHeight: 25,
+            ),
+          ],
+        );
+      },
+    ),
+  );
 
-    final pdfBytes = await pdf.save();
-    await savePdfToProductsCategory(productName, pdfBytes);
-  }
+  final pdfBytes = await pdf.save();
+  await savePdfToProductsCategory(productName, pdfBytes);
+}
 
   /// Enregistre le PDF dans le dossier productsCategory
   Future<File> savePdfToProductsCategory(String productName, List<int> pdfBytes) async {
@@ -623,55 +634,55 @@ class PdfController extends ChangeNotifier {
 
   /// Supprime un PDF dans le dossier productsCategory avec confirmation
   Future<void> deletePdfFromProductsCategory(BuildContext context, String productName) async {
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final categoryDir = Directory('${dir.path}/productsCategory');
-      
-      // Nettoyage du nom du fichier (évite le ".pdf.pdf")
-      final cleanName = productName.endsWith('.pdf') 
-          ? productName 
-          : '$productName.pdf';
+  try {
+    final dir = await getApplicationDocumentsDirectory();
+    final categoryDir = Directory('${dir.path}/productsCategory');
+    
+    // Nettoyage du nom du fichier (évite le ".pdf.pdf")
+    final cleanName = productName.endsWith('.pdf') 
+        ? productName 
+        : '$productName.pdf';
 
-      final file = File('${categoryDir.path}/$cleanName');
+    final file = File('${categoryDir.path}/$cleanName');
 
-      if (await file.exists()) {
-        final confirm = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Confirmation'),
-            content: Text('Supprimer le fichier "$cleanName" ?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Annuler'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
-              ),
-            ],
-          ),
-        );
+    if (await file.exists()) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Confirmation'),
+          content: Text('Supprimer le fichier "$cleanName" ?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
 
-        if (confirm == true) {
-          await file.delete();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('✅ Fichier "$cleanName" supprimé')),
-          );
-          notifyListeners();
-        }
-      } else {
+      if (confirm == true) {
+        await file.delete();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('⚠️ Le fichier "$cleanName" n’existe pas')),
+          SnackBar(content: Text('✅ Fichier "$cleanName" supprimé')),
         );
+        notifyListeners();
       }
-    } catch (e) {
-      debugPrint('Erreur lors de la suppression du PDF : $e');
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erreur lors de la suppression ❌')),
+        SnackBar(content: Text('⚠️ Le fichier "$cleanName" n’existe pas')),
       );
     }
+  } catch (e) {
+    debugPrint('Erreur lors de la suppression du PDF : $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Erreur lors de la suppression ❌')),
+    );
   }
+}
 
   //____________________________________________________ 
   //|   ---------------CARS------------------------     |
@@ -800,8 +811,10 @@ class PdfController extends ChangeNotifier {
     }
   }
 
-  /// 🔹 GÉNÉRATION DU PDF DES CONSOMMABLES
-  Future<void> generatePdfConsummables(
+
+
+/// 🔹 GÉNÉRATION DU PDF DES CONSOMMABLES
+Future<void> generatePdfConsummables(
     BuildContext context,
     String title,
     String elementName,
@@ -998,4 +1011,5 @@ class PdfController extends ChangeNotifier {
       }
     }
   }
+
 }

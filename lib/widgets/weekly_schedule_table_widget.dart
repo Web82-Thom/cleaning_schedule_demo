@@ -1,8 +1,8 @@
-import 'package:cleaning_schedule/controllers/pdf_controller.dart';
-import 'package:cleaning_schedule/controllers/schedule_controller.dart';
-import 'package:cleaning_schedule/controllers/workers_controller.dart';
-import 'package:cleaning_schedule/screens/list_pdf_schedule_weekly_page.dart';
-import 'package:cleaning_schedule/screens/planning/event_from_page.dart';
+import 'package:cleaning_schedule_demo/controllers/pdf_controller.dart';
+import 'package:cleaning_schedule_demo/controllers/schedule_controller.dart';
+import 'package:cleaning_schedule_demo/controllers/workers_controller.dart';
+import 'package:cleaning_schedule_demo/screens/list_pdf_schedule_weekly_page.dart';
+import 'package:cleaning_schedule_demo/screens/planning/event_from_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -40,33 +40,33 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
   }
 
   //---HELPERS---//
-    // Palette fixe pour des couleurs douces et lisibles
-  final List<MaterialColor> _palette = const [
-    Colors.blue, Colors.green, Colors.orange, Colors.teal, Colors.indigo,
-    Colors.cyan, Colors.amber, Colors.lightGreen, Colors.deepOrange, Colors.pink,
-    Colors.lime, Colors.deepPurple, Colors.brown, Colors.blueGrey, Colors.red,
-  ];
+  // Palette fixe pour des couleurs douces et lisibles
+final List<MaterialColor> _palette = const [
+  Colors.blue, Colors.green, Colors.orange, Colors.teal, Colors.indigo,
+  Colors.cyan, Colors.amber, Colors.lightGreen, Colors.deepOrange, Colors.pink,
+  Colors.lime, Colors.deepPurple, Colors.brown, Colors.blueGrey, Colors.red,
+];
 
-  final Map<String, Color> _placeColorCache = {};
+final Map<String, Color> _placeColorCache = {};
 
-  // Hash FNV-1a 32-bit (déterministe)
-  int _stableHash(String s) {
-    int h = 0x811C9DC5; // 2166136261
-    const int prime = 0x01000193; // 16777619
-    for (final codeUnit in s.codeUnits) {
-      h ^= codeUnit;
-      h = (h * prime) & 0xFFFFFFFF;
-    }
-    return h;
+// Hash FNV-1a 32-bit (déterministe)
+int _stableHash(String s) {
+  int h = 0x811C9DC5; // 2166136261
+  const int prime = 0x01000193; // 16777619
+  for (final codeUnit in s.codeUnits) {
+    h ^= codeUnit;
+    h = (h * prime) & 0xFFFFFFFF;
   }
+  return h;
+}
 
-  Color _colorForPlace(String place) {
-    if (_placeColorCache.containsKey(place)) return _placeColorCache[place]!;
-    final idx = _stableHash(place).abs() % _palette.length;
-    final color = _palette[idx].shade200;
-    _placeColorCache[place] = color;
-    return color;
-  }
+Color _colorForPlace(String place) {
+  if (_placeColorCache.containsKey(place)) return _placeColorCache[place]!;
+  final idx = _stableHash(place).abs() % _palette.length;
+  final color = _palette[idx].shade200;
+  _placeColorCache[place] = color;
+  return color;
+}
 
   // ---------- Semaine ----------
   DateTime _getStartOfWeek(DateTime date) => date.subtract(Duration(days: date.weekday - 1));
@@ -116,7 +116,7 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
     return ids.map((id) => _workersMap[id] ?? 'Inconnu').join(', ');
   }
 
-   //------------ construction scroll et chevron dans les cellules
+  //------------ construction scroll et chevron dans les cellules
  Widget buildScrollableCell(List<Map<String, dynamic>> events) {
   final scrollController = ScrollController();
   bool showChevron = false;
@@ -290,17 +290,17 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
         return Scaffold(
           appBar: AppBar(
             leading: IconButton(
-          onPressed: (){
-            _scheduleController.showDialogGeneratedWeeklyScheduleType(
-      context: context,
-      selectedDate: _startOfWeek, // ta semaine courante
-      weekNumber: _weekNumber,// ou false si poussière
-            );
-          }, 
-          icon: Icon(
-            Icons.calendar_view_week_rounded, 
-            color: Colors.green,),
-        ),
+              onPressed: (){
+                _scheduleController.showDialogGeneratedWeeklyScheduleType(
+                  context: context,
+                  selectedDate: _startOfWeek, // ta semaine courante
+                  weekNumber: _weekNumber,// ou false si poussière
+                );
+              }, 
+              icon: Icon(
+                Icons.calendar_view_week_rounded, 
+                color: Colors.green,),
+            ),
             title: Row(
               children: [
                 IconButton(
@@ -404,7 +404,7 @@ class _WeeklyScheduleTableWidgetState extends State<WeeklyScheduleTableWidget> {
               return InteractiveViewer(
                 panEnabled: true,
                 scaleEnabled: true,
-                minScale: 0.5,
+                minScale: 0.01,
                 maxScale: 2.0,
                 constrained: false,
                 child: SingleChildScrollView(

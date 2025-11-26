@@ -16,7 +16,7 @@ class BuildTabItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isSelected ? Colors.indigo : Colors.grey[600];
+    final color = isSelected ? Colors.white : Colors.black;
 
     return InkWell(
       onTap: onTap,

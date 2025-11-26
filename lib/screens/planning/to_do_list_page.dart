@@ -1,5 +1,5 @@
-import 'package:cleaning_schedule/controllers/to_do_list_controller.dart';
-import 'package:cleaning_schedule/models/to_do_list_model.dart';
+import 'package:cleaning_schedule_demo/controllers/to_do_list_controller.dart';
+import 'package:cleaning_schedule_demo/models/to_do_list_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -232,8 +232,9 @@ class _ToDoListPageState extends State<ToDoListPage> {
       value: toDoListController,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('To Do List'),
+          title: const Text('To Do List',),
           backgroundColor: Colors.indigo,
+          foregroundColor: Colors.white ,
         ),
         floatingActionButton: FloatingActionButton(
           backgroundColor: Colors.indigo,

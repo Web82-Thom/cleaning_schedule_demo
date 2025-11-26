@@ -1,4 +1,4 @@
-import 'package:cleaning_schedule/screens/home_page.dart';
+import 'package:cleaning_schedule_demo/screens/home_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -98,11 +98,20 @@ class AuthController extends ChangeNotifier {
 
   /// --- 🧩 CONNEXION UTILISATEUR ---
   Future<void> loginUser({
-  required String email,
-  required String password,
-  required BuildContext context,
+    required String email,
+    required String password,
+    required BuildContext context,
   }) async {
     BuildContext? loaderContext;
+
+    // 🔹 Utilitaire pour fermer le loader proprement
+    void closeLoaderIfOpen() {
+      if (loaderContext != null &&
+          loaderContext!.mounted &&
+          Navigator.canPop(loaderContext!)) {
+        Navigator.of(loaderContext!).pop();
+      }
+    }
 
     // 🔹 Affiche un loader modal sécurisé
     if (context.mounted) {
@@ -127,7 +136,9 @@ class AuthController extends ChangeNotifier {
       );
 
       final user = cred.user;
-      if (user == null) throw Exception("Utilisateur introuvable.");
+      if (user == null) {
+        throw Exception("Utilisateur introuvable.");
+      }
 
       // 🔹 Vérifie le rôle Firestore
       final userDoc = await _db.collection('users').doc(user.uid).get();
@@ -136,15 +147,15 @@ class AuthController extends ChangeNotifier {
           userDoc['role'] != 'instructor' ||
           userDoc['actif'] == false) {
         await _auth.signOut();
-        throw Exception("Accès refusé : moniteur/trice inactif(ve) ou non autorisé(e).");
+        throw Exception(
+          "Accès refusé : moniteur/trice inactif(ve) ou non autorisé(e).",
+        );
       }
 
-      // ✅ Ferme le loader si encore monté
-      if (loaderContext != null && loaderContext!.mounted && Navigator.canPop(loaderContext!)) {
-        Navigator.of(loaderContext!).pop();
-      }
+      // ✅ Ferme le loader
+      closeLoaderIfOpen();
 
-      // ✅ Navigation vers HomePage (safe)
+      // ✅ Navigation vers HomePage
       if (context.mounted) {
         Navigator.pushAndRemoveUntil(
           context,
@@ -153,31 +164,67 @@ class AuthController extends ChangeNotifier {
         );
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Connexion réussie ✅")),
+          const SnackBar(
+            content: Text("Connexion réussie ✅"),
+          ),
         );
       }
     } on FirebaseAuthException catch (e) {
-      // 🔹 Ferme le loader proprement
-      if (loaderContext != null && loaderContext!.mounted && Navigator.canPop(loaderContext!)) {
-        Navigator.of(loaderContext!).pop();
+      // 🔹 Ferme le loader
+      closeLoaderIfOpen();
+
+      // 🔹 Cas où on veut ton message unique stylé
+      if (e.code == 'user-not-found' ||
+          e.code == 'invalid-email' ||
+          e.code == 'wrong-password' ||
+          e.code == 'invalid-credential') {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              content: Text.rich(
+                TextSpan(
+                  children: const [
+                    TextSpan(
+                      text: "Vérifiez votre Email / mot de passe. ",
+                      // pas de style = couleur/typo par défaut du SnackBar
+                    ),
+                    TextSpan(
+                      text: "Où vous n'avez pas de droit d'accès à cette application.",
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        return; // on sort, pas besoin de gérer plus
       }
 
-      // 🔹 Affiche message Firebase
+      // 🔹 Autres erreurs Firebase (réseau, etc.)
+      final fallbackMessage = e.message ?? "Erreur de connexion Firebase.";
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Erreur de connexion Firebase')),
+          SnackBar(content: Text(fallbackMessage)),
         );
       }
     } catch (e) {
-      // 🔹 Ferme le loader proprement
-      if (loaderContext != null && loaderContext!.mounted && Navigator.canPop(loaderContext!)) {
-        Navigator.of(loaderContext!).pop();
+      // 🔹 Ferme le loader
+      closeLoaderIfOpen();
+
+      // 🔹 Message pour les erreurs "métier" (rôle / actif / autre)
+      String message = e.toString();
+      if (message.startsWith('Exception: ')) {
+        message = message.replaceFirst('Exception: ', '');
       }
 
-      // 🔹 Message d’erreur générique
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur : $e')),
+          SnackBar(content: Text(message)),
         );
       }
     }

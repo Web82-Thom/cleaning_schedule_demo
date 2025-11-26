@@ -1,4 +1,4 @@
-import 'package:cleaning_schedule/controllers/workers_controller.dart';
+import 'package:cleaning_schedule_demo/controllers/workers_controller.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -41,6 +41,34 @@ class _DetailsWorkerPageState extends State<DetailsWorkerPage> {
         final bool isAbcent = data['isAbcent'] ?? false;
         final bool isFullTime = data['isFullTime'] ?? true;
         final bool hasCustomHours = workersController.hasDefinedEndTime(data);
+        
+        // 🔹 Congés (nouveau)
+        final List<dynamic> rawLeaves = (data['conges'] as List<dynamic>?) ?? [];
+        bool isOnLeaveToday = false;
+
+        if (rawLeaves.isNotEmpty) {
+          final today = DateTime.now();
+          final d0 = DateTime(today.year, today.month, today.day);
+
+          for (final item in rawLeaves) {
+            if (item is Map<String, dynamic>) {
+              final tsStart = item['start'] as Timestamp?;
+              final tsEnd = item['end'] as Timestamp?;
+              if (tsStart == null || tsEnd == null) continue;
+
+              final start = tsStart.toDate();
+              final end = tsEnd.toDate();
+              final dStart = DateTime(start.year, start.month, start.day);
+              final dEnd = DateTime(end.year, end.month, end.day);
+
+              if (!d0.isBefore(dStart) && !d0.isAfter(dEnd)) {
+                isOnLeaveToday = true;
+                break;
+              }
+            }
+          }
+        }
+        final bool hasLeaves = rawLeaves.isNotEmpty;
 
         // --- Statut ---
         String status = 'Temps plein';
@@ -57,10 +85,12 @@ class _DetailsWorkerPageState extends State<DetailsWorkerPage> {
 
         return Scaffold(
           appBar: AppBar(
+            backgroundColor: Colors.indigo,
+            foregroundColor: Colors.white ,
             title: const Text("Détails du travailleur"),
             actions: [
               IconButton(
-                icon: const Icon(Icons.edit, color: Colors.indigo),
+                icon: const Icon(Icons.edit, color: Colors.white),
                 tooltip: "Modifier le travailleur",
                 onPressed: () {
                   workersController.updateWorker(
@@ -119,22 +149,77 @@ class _DetailsWorkerPageState extends State<DetailsWorkerPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    // --- Présence ---
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.access_time, color: Colors.grey),
-                        const SizedBox(width: 8),
-                        Text(
-                          isAbcent ? 'Actuellement absent' : 'Présent',
+                    // --- En congé (nouveau) ---
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () => workersController.showLeaveDialog(
+                        context,
+                        widget.workerId,
+                        data,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Checkbox(
+                            value: hasLeaves,
+                            onChanged: (_) {
+                              workersController.showLeaveDialog(
+                                context,
+                                widget.workerId,
+                                data,
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 4),
+                          const Text(
+                            'En congé',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (hasLeaves)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          isOnLeaveToday
+                              ? 'Congé en cours'
+                              : 'Congés enregistrés',
                           style: TextStyle(
-                            color: isAbcent ? Colors.red : Colors.green,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                            color: isOnLeaveToday ? Colors.orange : Colors.grey,
+                            fontStyle: FontStyle.italic,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+
+                      const SizedBox(height: 12),
+                      // --- Présence (tient compte des congés) ---
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.access_time, color: Colors.grey),
+                          const SizedBox(width: 8),
+                          Builder(
+                            builder: (_) {
+                              final label = isOnLeaveToday
+                                  ? 'En congé'
+                                  : (isAbcent ? 'Actuellement absent' : 'Présent');
+                              final color = isOnLeaveToday
+                                  ? Colors.orange
+                                  : (isAbcent ? Colors.red : Colors.green);
+
+                              return Text(
+                                label,
+                                style: TextStyle(
+                                  color: color,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                     // --- Heure aménagée ---
                     if (!isAbcent && hasCustomHours)
                     Row(
@@ -190,15 +275,15 @@ class _DetailsWorkerPageState extends State<DetailsWorkerPage> {
                           ];
 
                           final sortedEntries = orderedDays
-                              .where((day) => workSchedule.containsKey(day))
-                              .map((day) => MapEntry(day, workSchedule[day]))
-                              .where((entry) {
-                            final info = Map<String, dynamic>.from(entry.value);
-                            final worksMorning = info['worksMorning'] ?? true;
-                            final worksAfternoon = info['worksAfternoon'] ?? true;
-                            final endTime = info['endTime'];
-                            return !worksMorning || !worksAfternoon || endTime != null;
-                          }).toList();
+                            .where((day) => workSchedule.containsKey(day))
+                            .map((day) => MapEntry(day, workSchedule[day]))
+                            .where((entry) {
+                              final info = Map<String, dynamic>.from(entry.value);
+                              final worksMorning = info['worksMorning'] ?? true;
+                              final worksAfternoon = info['worksAfternoon'] ?? true;
+                              final endTime = info['endTime'];
+                              return !worksMorning || !worksAfternoon || endTime != null;
+                            },).toList();
                           // 🔹 Aucun aménagement
                           if (sortedEntries.isEmpty) {
                             return Padding(

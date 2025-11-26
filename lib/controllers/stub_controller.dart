@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cleaning_schedule/screens/planning/edit_planning_page.dart';
+import 'package:cleaning_schedule_demo/screens/planning/edit_planning_page.dart';
 
 class StubController extends ChangeNotifier {
   ///--------OPEN EDIT GESTION--------------

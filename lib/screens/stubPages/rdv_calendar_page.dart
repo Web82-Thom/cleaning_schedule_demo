@@ -1,8 +1,8 @@
-import 'package:cleaning_schedule/controllers/auth_controller.dart';
-import 'package:cleaning_schedule/controllers/rdv_controller.dart';
-import 'package:cleaning_schedule/controllers/workers_controller.dart';
-import 'package:cleaning_schedule/models/rdv_model.dart';
-import 'package:cleaning_schedule/screens/rdvs/rdv_form_page.dart';
+import 'package:cleaning_schedule_demo/controllers/auth_controller.dart';
+import 'package:cleaning_schedule_demo/controllers/rdv_controller.dart';
+import 'package:cleaning_schedule_demo/controllers/workers_controller.dart';
+import 'package:cleaning_schedule_demo/models/rdv_model.dart';
+import 'package:cleaning_schedule_demo/screens/rdvs/rdv_form_page.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
@@ -70,30 +70,82 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
     return result == true;
   }
 
-  String getRdvLabel(RdvModel rdv) {
-    if (rdv.workerId == "TEAM") return "Équipe";
-    if (rdv.workerId.isNotEmpty) {
-      return _workersController.workersMap[rdv.workerId] ?? "Inconnu";
+  List<String> _getWorkerNamesForRdv(RdvModel rdv) {
+    final names = <String>[];
+
+    // 🔹 Utilise la liste workerIds si elle existe
+    if (rdv.workerIds.isNotEmpty) {
+      for (final wid in rdv.workerIds) {
+        final name = _workersController.workersMap[wid];
+        if (name != null && name.trim().isNotEmpty) {
+          names.add(name);
+        }
+      }
+    } else {
+      // 🔹 Rétro-compat : un seul workerId (et pas TEAM)
+      if (rdv.workerId.isNotEmpty && rdv.workerId != 'TEAM') {
+        final single = _workersController.workersMap[rdv.workerId];
+        if (single != null && single.trim().isNotEmpty) {
+          names.add(single);
+        }
+      }
     }
-    if (rdv.monitorIds.isNotEmpty) return "Moniteur(s)";
-    return "Inconnu";
+
+    return names;
   }
 
+  String getRdvLabel(RdvModel rdv) {
+    final workerNames = _getWorkerNamesForRdv(rdv);
+    final hasMonitors = rdv.monitorIds.isNotEmpty;
+    final hasTeam = rdv.workerId == 'TEAM' || workerNames.length > 1;
+
+    if (hasTeam && hasMonitors) return 'Équipe + Moniteur(s)';
+    if (hasTeam) return 'Équipe';
+    if (workerNames.length == 1 && hasMonitors) return 'Travailleur + Moniteur(s)';
+    if (workerNames.length == 1) return 'Travailleur';
+    if (hasMonitors) return 'Moniteur(s)';
+    return 'Inconnu';
+  }
+
+  /// Ligne compacte affichée dans la carte fermée
   String getRdvSubtitle(RdvModel rdv) {
     String text = rdv.heure;
-    if (rdv.lieu?.isNotEmpty == true) text += " • ${rdv.lieu}";
-    if (rdv.monitorIds.isNotEmpty) {
-      final monitorsNames = rdv.monitorIds
-          .map((id) => monitorsMap[id] ?? "Inconnu")
-          .join(", ");
-      text += " • $monitorsNames";
+    if (rdv.lieu?.isNotEmpty == true) {
+      text += " • ${rdv.lieu}";
     }
+    text += ' • ${getRdvLabel(rdv)}';
     return text;
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label : ',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _openDayRdvsPage(DateTime day) async {
     final dayKey = DateTime(day.year, day.month, day.day);
     List<RdvModel> events = List.from(_getEventsForDay(dayKey));
+    // 🔹 pour gérer l'état "ouvert/fermé" de chaque carte RDV
+    final Set<String> expandedIds = {};
 
     await showModalBottomSheet(
       context: context,
@@ -115,57 +167,123 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
                   ),
                   const SizedBox(height: 12),
                   ...events.map(
-                    (rdv) => Card(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      child: ListTile(
-                        title: Text('${getRdvLabel(rdv)} • ${rdv.motif}'),
-                        subtitle: Text(getRdvSubtitle(rdv)),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(
-                                Icons.edit,
-                                color: Colors.blueAccent,
+                    (rdv) {
+                      final bool isExpanded = expandedIds.contains(rdv.id);
+                      final workerNames = _getWorkerNamesForRdv(rdv);
+                      final hasTeam = rdv.workerId == 'TEAM' || workerNames.length > 1;
+                      final monitorsNames = rdv.monitorIds
+                          .map((id) => monitorsMap[id] ?? 'Inconnu')
+                          .toList();
+
+                      return GestureDetector(
+                        onTap: () {
+                          setModalState(() {
+                            if (isExpanded) {
+                              expandedIds.remove(rdv.id);
+                            } else {
+                              expandedIds.add(rdv.id);
+                            }
+                          });
+                        },
+                        child: Card(
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          child: Column(
+                            children: [
+                              ListTile(
+                                title: Text(
+                                  rdv.motif.isNotEmpty ? rdv.motif : 'Sans motif',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                subtitle: Text(
+                                  getRdvSubtitle(rdv),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        color: Colors.blueAccent,
+                                      ),
+                                      onPressed: () async {
+                                        final result = await _openRdvForm(rdv: rdv);
+                                        if (result) {
+                                          final updatedEvents = await _rdvController.loadRdvs();
+                                          setState(() => rdvEvents = updatedEvents);
+                                          setModalState(() {
+                                            events = List.from(rdvEvents[dayKey] ?? []);
+                                            expandedIds.remove(rdv.id);
+                                          });
+                                        }
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete,
+                                        color: Colors.redAccent,
+                                      ),
+                                      onPressed: () async {
+                                        final deleted = await _rdvController.deleteRdv(
+                                          context,
+                                          rdv,
+                                        );
+                                        if (deleted) {
+                                          rdvEvents[dayKey]?.removeWhere(
+                                            (e) => e.id == rdv.id,
+                                          );
+                                          setState(() {});
+                                          setModalState(() {
+                                            events.removeWhere((e) => e.id == rdv.id);
+                                            expandedIds.remove(rdv.id);
+                                          });
+                                        }
+                                      },
+                                    ),
+                                    Icon(
+                                      isExpanded
+                                          ? Icons.expand_less
+                                          : Icons.expand_more,
+                                      color: Colors.grey,
+                                    ),
+                                  ],
+                                ),
                               ),
-                              onPressed: () async {
-                                final result = await _openRdvForm(rdv: rdv);
-                                if (result) {
-                                  final updatedEvents = await _rdvController
-                                      .loadRdvs();
-                                  setState(() => rdvEvents = updatedEvents);
-                                  setModalState(() {
-                                    events = List.from(rdvEvents[dayKey] ?? []);
-                                  });
-                                }
-                              },
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.delete,
-                                color: Colors.redAccent,
-                              ),
-                              onPressed: () async {
-                                final deleted = await _rdvController.deleteRdv(
-                                  context,
-                                  rdv,
-                                );
-                                if (deleted) {
-                                  rdvEvents[dayKey]?.removeWhere(
-                                    (e) => e.id == rdv.id,
-                                  );
-                                  /// Pour forcer TableCalendar à se rebuild
-                                  setState(() {});
-                                  setModalState(() {
-                                    events.removeWhere((e) => e.id == rdv.id);
-                                  });
-                                }
-                              },
-                            ),
-                          ],
+
+                              // 🔻 Détails visibles seulement si la carte est "ouverte"
+                              if (isExpanded)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _buildDetailRow('Heure', rdv.heure),
+                                      _buildDetailRow(
+                                        'Lieu',
+                                        (rdv.lieu != null && rdv.lieu!.isNotEmpty)
+                                            ? rdv.lieu!
+                                            : 'Non précisé',
+                                      ),
+                                      if (workerNames.isNotEmpty)
+                                        _buildDetailRow(
+                                          hasTeam ? 'Équipe' : 'Travailleur',
+                                          workerNames.join(', '),
+                                        ),
+                                      if (monitorsNames.isNotEmpty)
+                                        _buildDetailRow(
+                                          'Moniteur(s)',
+                                          monitorsNames.join(', '),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 12),
                   ListTile(
@@ -243,15 +361,29 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
                         final rdvs = events.cast<RdvModel>();
                         if (rdvs.isEmpty) return const SizedBox.shrink();
 
-                        List<Widget> markers = [];
+                        bool hasWorkersOnly = false;
+                        bool hasMonitorsOnly = false;
+                        bool hasBoth = false;
 
-                        // Travailleur seul → noir
-                        if (rdvs.any(
-                          (r) =>
-                              r.workerId.isNotEmpty &&
-                              r.workerId != "TEAM" &&
-                              r.monitorIds.isEmpty,
-                        )) {
+                        for (final r in rdvs) {
+                          // 🔹 On utilise la même logique que dans le détail :
+                          final workerNames = _getWorkerNamesForRdv(r);
+                          final hasWorkers = workerNames.isNotEmpty || r.workerId == 'TEAM';
+                          final hasMonitors = r.monitorIds.isNotEmpty;
+
+                          if (hasWorkers && !hasMonitors) {
+                            hasWorkersOnly = true;
+                          } else if (!hasWorkers && hasMonitors) {
+                            hasMonitorsOnly = true;
+                          } else if (hasWorkers && hasMonitors) {
+                            hasBoth = true;
+                          }
+                        }
+
+                        // On construit les marqueurs
+                        final List<Widget> markers = [];
+
+                        if (hasWorkersOnly) {
                           markers.add(
                             Container(
                               width: 6,
@@ -264,38 +396,31 @@ class _RdvCalendarPageState extends State<RdvCalendarPage> {
                           );
                         }
 
-                        // Moniteur seul → rose
-                        if (rdvs.any(
-                          (r) =>
-                              (r.workerId.isEmpty || r.workerId == "TEAM") &&
-                              r.monitorIds.isNotEmpty,
-                        )) {
+                        if (hasMonitorsOnly) {
                           markers.add(
                             Container(
                               width: 6,
                               height: 6,
                               decoration: const BoxDecoration(
-                                color: Colors.pink,
+                                color: Colors.red, // 🔴 moniteurs
                                 shape: BoxShape.circle,
                               ),
                             ),
                           );
                         }
 
-                        // Travailleur + moniteur → demi noir/rose
-                        if (rdvs.any(
-                          (r) =>
-                              r.workerId.isNotEmpty && r.monitorIds.isNotEmpty,
-                        )) {
+                        if (hasBoth) {
                           markers.add(
                             const SizedBox(
                               width: 6,
                               height: 6,
-                              child: CustomPaint(painter: HalfCirclePainter()),
+                              child: CustomPaint(
+                                painter: HalfCirclePainter(), // noir + rouge
+                              ),
                             ),
                           );
                         }
-
+                        if (markers.isEmpty) return const SizedBox.shrink();
                         return Row(
                           mainAxisSize: MainAxisSize.min,
                           children: markers

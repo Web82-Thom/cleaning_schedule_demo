@@ -1,5 +1,5 @@
-import 'package:cleaning_schedule/controllers/workers_controller.dart';
-import 'package:cleaning_schedule/screens/workers/details_worker_page.dart';
+import 'package:cleaning_schedule_demo/controllers/workers_controller.dart';
+import 'package:cleaning_schedule_demo/screens/workers/details_worker_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -30,7 +30,10 @@ class _ListWorkersPageState extends State<ListWorkersPage> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
-        appBar: AppBar(title: const Text("Liste des travailleurs")),
+        appBar: AppBar(title: const Text("Liste des travailleurs"),
+          backgroundColor: Colors.indigo,
+          foregroundColor: Colors.white ,
+        ),
         body: StreamBuilder<QuerySnapshot>(
           stream: workersRef.orderBy('firstName', descending: false).snapshots(),
           builder: (context, snapshot) {

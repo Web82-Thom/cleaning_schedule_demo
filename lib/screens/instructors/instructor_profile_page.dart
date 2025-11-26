@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:cleaning_schedule/controllers/edit_instructor_controller.dart';
-import 'package:cleaning_schedule/controllers/rdv_controller.dart';
-import 'package:cleaning_schedule/models/rdv_model.dart';
+import 'package:cleaning_schedule_demo/controllers/edit_instructor_controller.dart';
+import 'package:cleaning_schedule_demo/controllers/rdv_controller.dart';
+import 'package:cleaning_schedule_demo/models/rdv_model.dart';
 
 class InstructorProfilePage extends StatefulWidget {
   const InstructorProfilePage({super.key});

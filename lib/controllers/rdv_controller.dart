@@ -1,5 +1,5 @@
-import 'package:cleaning_schedule/models/rdv_model.dart';
-import 'package:cleaning_schedule/screens/rdvs/rdv_form_page.dart';
+import 'package:cleaning_schedule_demo/models/rdv_model.dart';
+import 'package:cleaning_schedule_demo/screens/rdvs/rdv_form_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -10,32 +10,30 @@ class RdvController extends ChangeNotifier{
 
   /// Pour récupérer les RDVs du user sous forme groupée par jour
   Future<Map<DateTime, List<RdvModel>>> loadCurrentUserRdvsByDay() async {
+    // 🔹 Requête sans orderBy
+    final snapshot = await FirebaseFirestore.instance
+        .collection('rdvs')
+        .where('monitorIds', arrayContains: currentUserId)
+        .get();
 
-  // 🔹 Requête sans orderBy
-  final snapshot = await FirebaseFirestore.instance
-      .collection('rdvs')
-      .where('monitorIds', arrayContains: currentUserId)
-      .get();
+    // 🔹 Transformer les docs en modèles
+    final rdvs = snapshot.docs
+        .map((doc) => RdvModel.fromFirestore(doc.id, doc.data()))
+        .toList();
 
-  // 🔹 Transformer les docs en modèles
-  final rdvs = snapshot.docs
-      .map((doc) => RdvModel.fromFirestore(doc.id, doc.data()))
-      .toList();
+    // 🔹 Trier par date côté Flutter
+    rdvs.sort((a, b) => a.date.compareTo(b.date));
 
-  // 🔹 Trier par date côté Flutter
-  rdvs.sort((a, b) => a.date.compareTo(b.date));
+    // 🔹 Grouper par jour
+    final Map<DateTime, List<RdvModel>> events = {};
+    for (var rdv in rdvs) {
+      final day = DateTime(rdv.date.year, rdv.date.month, rdv.date.day);
+      events[day] = events[day] ?? [];
+      events[day]!.add(rdv);
+    }
 
-  // 🔹 Grouper par jour
-  final Map<DateTime, List<RdvModel>> events = {};
-  for (var rdv in rdvs) {
-    final day = DateTime(rdv.date.year, rdv.date.month, rdv.date.day);
-    events[day] = events[day] ?? [];
-    events[day]!.add(rdv);
+    return events;
   }
-
-  return events;
-}
-
 
   /// Charge tous les RDVs et retourne une Map par jour
   Future<Map<DateTime, List<RdvModel>>> loadRdvs() async {
@@ -125,4 +123,5 @@ class RdvController extends ChangeNotifier{
           .showSnackBar(SnackBar(content: Text('Erreur : $e')));
     }
   }
+
 }

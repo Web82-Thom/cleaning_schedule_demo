@@ -1,4 +1,4 @@
-# cleaning_schedule
+# cleaning_schedule_demo
 
 A new Flutter project.
 

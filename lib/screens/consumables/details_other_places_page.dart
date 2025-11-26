@@ -1,4 +1,4 @@
-import 'package:cleaning_schedule/screens/consumables/widgets/build_table_for_consumable_widget.dart';
+import 'package:cleaning_schedule_demo/screens/consumables/widgets/build_table_for_consumable_widget.dart';
 import 'package:flutter/material.dart';
 
 class DetailsOtherPlacesPage extends StatelessWidget {

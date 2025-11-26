@@ -1,4 +1,4 @@
-import 'package:cleaning_schedule/models/user_model.dart';
+import 'package:cleaning_schedule_demo/models/user_model.dart';
 
 class InstructorModel extends UserModel {
   final List<String> lieuxSupervises; // IDs des lieux

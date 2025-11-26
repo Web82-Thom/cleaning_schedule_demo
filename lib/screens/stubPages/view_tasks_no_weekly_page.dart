@@ -1,7 +1,7 @@
-import 'package:cleaning_schedule/controllers/pdf_controller.dart';
-import 'package:cleaning_schedule/widgets/table_date_task_no_weekly_widget.dart';
-import 'package:cleaning_schedule/widgets/tasks_widget.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:cleaning_schedule_demo/controllers/pdf_controller.dart';
+import 'package:cleaning_schedule_demo/widgets/table_date_task_no_weekly_widget.dart';
+import 'package:cleaning_schedule_demo/widgets/tasks_widget.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class ViewTasksNoWeeklyPage extends StatelessWidget {

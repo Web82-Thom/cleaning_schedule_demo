@@ -1,5 +1,5 @@
-import 'package:cleaning_schedule/screens/places/created_place.dart';
-import 'package:cleaning_schedule/screens/places/list_sub_places_page.dart';
+import 'package:cleaning_schedule_demo/screens/places/created_place.dart';
+import 'package:cleaning_schedule_demo/screens/places/list_sub_places_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -26,6 +26,8 @@ class _ListPlaceState extends State<ListPlace> {
               onPressed: () => setState(() {}),
             ),
           ],
+          backgroundColor: Colors.indigo,
+          foregroundColor: Colors.white ,
         ),
       
         // --- Corps : liste des lieux ---

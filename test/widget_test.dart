@@ -3,9 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
-import 'package:cleaning_schedule/main.dart';
-import 'package:cleaning_schedule/screens/home_page.dart';
-import 'package:cleaning_schedule/screens/auth/login_page.dart';
+import 'package:cleaning_schedule_demo/main.dart';
+import 'package:cleaning_schedule_demo/screens/home_page.dart';
+import 'package:cleaning_schedule_demo/screens/auth/login_page.dart';
 
 void main() {
   group('AuthWrapper Widget Tests', () {
