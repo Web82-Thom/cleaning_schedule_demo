@@ -54,7 +54,7 @@ class DocumentationsPdfPage extends StatelessWidget {
         subtitle: "Guide complet 'cleaning schedule'.",
         icon: Icons.local_drink_outlined,
         color: Colors.orange,
-        assetPath: "assets/documentations/guide_complet_cleaning_schedule_demo.pdf",
+        assetPath: "assets/documentations/guide_complet_cleaning_schedule.pdf",
       ),
     ];
 
