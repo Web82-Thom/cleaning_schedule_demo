@@ -26,7 +26,8 @@ class ListSubPlacesPage extends StatelessWidget {
 
     return SafeArea(
       child: Scaffold(
-        appBar: AppBar(title: Text(name)),
+        appBar: AppBar(title: Text(name), backgroundColor: Colors.indigo,
+          foregroundColor: Colors.white ,),
       
         body: Padding(
           padding: const EdgeInsets.only(right: 12.0, left: 12, top:5, bottom: 80),

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:cleaning_schedule/widgets/weeklyScheduleType/weekly_schedule_type.dart';
+import 'package:cleaning_schedule_demo/widgets/weeklyScheduleType/weekly_schedule_type.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -40,8 +40,57 @@ class ScheduleController extends ChangeNotifier {
     return [...events];
   }
 
-  /// 🔹 Génère un planning type (Lundi uniquement pour le test)
-  /// 🔹 Affiche un dialogue pour générer une semaine type
+  // ─────────────────────────────────────────────────────────────
+  // 🔹 Helpers pour la gestion des semaines déjà générées
+  // ─────────────────────────────────────────────────────────────
+
+  /// Id unique pour une semaine donnée (on utilise le lundi + type poussière ou non)
+  String _weekDocId({
+    required DateTime mondayDate,
+    required bool dustWeek,
+  }) {
+    final y = mondayDate.year;
+    final m = mondayDate.month.toString().padLeft(2, '0');
+    final d = mondayDate.day.toString().padLeft(2, '0');
+    final type = dustWeek ? 'dust' : 'std';
+    return '$y-$m-$d-$type';
+  }
+
+  /// Vérifie dans Firestore si un planning type a déjà été généré pour cette semaine
+  Future<bool> _hasAlreadyGeneratedWeek({
+    required DateTime mondayDate,
+    required bool dustWeek,
+  }) async {
+    final id = _weekDocId(mondayDate: mondayDate, dustWeek: dustWeek);
+    final doc = await FirebaseFirestore.instance
+        .collection('generated_weeks')
+        .doc(id)
+        .get();
+    return doc.exists;
+  }
+
+  /// Marque une semaine comme générée dans Firestore
+  Future<void> _markWeekAsGenerated({
+    required DateTime mondayDate,
+    required int weekNumber,
+    required bool dustWeek,
+  }) async {
+    final id = _weekDocId(mondayDate: mondayDate, dustWeek: dustWeek);
+    await FirebaseFirestore.instance
+        .collection('generated_weeks')
+        .doc(id)
+        .set({
+      'mondayDate': Timestamp.fromDate(mondayDate),
+      'weekNumber': weekNumber,
+      'dustWeek': dustWeek,
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔹 Dialog de génération de planning type
+  // ─────────────────────────────────────────────────────────────
+
   Future<void> showDialogGeneratedWeeklyScheduleType({
     required BuildContext context,
     required DateTime selectedDate,
@@ -81,9 +130,40 @@ class ScheduleController extends ChangeNotifier {
                   child: const Text('Annuler'),
                 ),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                  ),
                   onPressed: () async {
-                    Navigator.pop(ctx); // ferme le dialog de confirmation
+                    // 🔹 Calcule le lundi de la semaine courante
+                    final mondayDate = selectedDate.subtract(
+                      Duration(
+                        days: selectedDate.weekday - DateTime.monday,
+                      ),
+                    );
+
+                    // 🔹 Vérifie si un planning pour cette semaine existe déjà
+                    final alreadyGenerated = await _hasAlreadyGeneratedWeek(
+                      mondayDate: mondayDate,
+                      dustWeek: isDustWeek,
+                    );
+
+                    if (alreadyGenerated) {
+                      // On ferme le dialog et on affiche un message
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Un planning type pour cette semaine a déjà été généré. ❌',
+                            ),
+                          ),
+                        );
+                      }
+                      return;
+                    }
+
+                    // Sinon, on peut générer
+                    Navigator.pop(ctx); // ferme le dialog
                     await generateWeeklyScheduleType(
                       context: context,
                       selectedDate: selectedDate,
@@ -91,7 +171,7 @@ class ScheduleController extends ChangeNotifier {
                       dustWeek: isDustWeek,
                     );
                   },
-                  child: const Text('Générer'),
+                  child: const Text('Générer', style: TextStyle(color: Colors.white),),
                 ),
               ],
             );
@@ -100,8 +180,11 @@ class ScheduleController extends ChangeNotifier {
       },
     );
   }
-  
-  /// 🔹 Génère et insère le planning complet de la semaine (L→V)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔹 Génération effective de la semaine type
+  // ─────────────────────────────────────────────────────────────
+
   Future<void> generateWeeklyScheduleType({
     required BuildContext context,
     required DateTime selectedDate,
@@ -115,6 +198,24 @@ class ScheduleController extends ChangeNotifier {
       final mondayDate = selectedDate.subtract(
         Duration(days: selectedDate.weekday - DateTime.monday),
       );
+
+      // 🔹 Sécurité supplémentaire : on revérifie côté génération
+      final alreadyGenerated = await _hasAlreadyGeneratedWeek(
+        mondayDate: mondayDate,
+        dustWeek: dustWeek,
+      );
+      if (alreadyGenerated) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Le planning type pour cette semaine existe déjà, génération annulée. ❌',
+              ),
+            ),
+          );
+        }
+        return;
+      }
 
       // 🔹 Crée un OverlayEntry (loader global, pas de dialog)
       overlay = OverlayEntry(
@@ -135,13 +236,20 @@ class ScheduleController extends ChangeNotifier {
         dustWeek: dustWeek,
       );
 
-      // 🔹 Envoi Firestore
+      // 🔹 Envoi Firestore (batch)
       final batch = FirebaseFirestore.instance.batch();
       final eventsRef = FirebaseFirestore.instance.collection('events');
       for (final e in events) {
         batch.set(eventsRef.doc(), e);
       }
       await batch.commit();
+
+      // 🔹 Marque cette semaine comme générée
+      await _markWeekAsGenerated(
+        mondayDate: mondayDate,
+        weekNumber: weekNumber,
+        dustWeek: dustWeek,
+      );
 
       // 🔹 Retire le loader
       overlay.remove();

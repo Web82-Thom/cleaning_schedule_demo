@@ -1,4 +1,4 @@
-import 'package:cleaning_schedule/controllers/pdf_controller.dart';
+import 'package:cleaning_schedule_demo/controllers/pdf_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -59,6 +59,17 @@ class _BuildTableForConsumableWidgetState extends State<BuildTableForConsumableW
             'produits': produitsList ?? [],
           };
         }).toList();
+        
+        // 🔹 Tri : du plus récent au plus ancien
+        _records.sort((a, b) {
+          try {
+            final da = DateFormat('dd/MM/yyyy').parse(a['date']);
+            final db = DateFormat('dd/MM/yyyy').parse(b['date']);
+            return db.compareTo(da); // 📌 ordre décroissant (récent → ancien)
+          } catch (_) {
+            return 0;
+          }
+        });
       });
     }
   } catch (e) {
@@ -375,17 +386,17 @@ class _BuildTableForConsumableWidgetState extends State<BuildTableForConsumableW
                     final List<Map<String, dynamic>> produits =
                         (record['produits'] as List?)?.cast<Map<String, dynamic>>() ?? [];
                         final dateStr = record['date'];
-String formattedDate = dateStr ?? '';
+                        String formattedDate = dateStr ?? '';
 
-if (dateStr != null && dateStr.isNotEmpty) {
-  try {
-    // ✅ Si ta date vient déjà sous forme de string "24/10/2025", tu peux la parser :
-    final parsed = DateFormat('dd/MM/yyyy').parse(dateStr);
-    formattedDate = DateFormat('dd/MM/yy').format(parsed);
-  } catch (e) {
-    formattedDate = dateStr; // fallback au texte brut
-  }
-}
+                        if (dateStr != null && dateStr.isNotEmpty) {
+                          try {
+                            // ✅ Si ta date vient déjà sous forme de string "24/10/2025", tu peux la parser :
+                            final parsed = DateFormat('dd/MM/yyyy').parse(dateStr);
+                            formattedDate = DateFormat('dd/MM/yy').format(parsed);
+                          } catch (e) {
+                            formattedDate = dateStr; // fallback au texte brut
+                          }
+                        }
 
                     return InkWell(
                       onDoubleTap: () => _recordDialog(index: index),

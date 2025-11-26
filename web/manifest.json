@@ -1,6 +1,6 @@
 {
-    "name": "cleaning_schedule",
-    "short_name": "cleaning_schedule",
+    "name": "cleaning_schedule_demo",
+    "short_name": "cleaning_schedule_demo",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -1,6 +1,7 @@
-import 'package:cleaning_schedule/controllers/pdf_controller.dart';
-import 'package:cleaning_schedule/widgets/table_date_task_no_weekly_widget.dart';
-import 'package:cleaning_schedule/widgets/tasks_widget.dart';
+import 'package:cleaning_schedule_demo/controllers/pdf_controller.dart';
+import 'package:cleaning_schedule_demo/widgets/table_date_task_no_weekly_widget.dart';
+import 'package:cleaning_schedule_demo/widgets/tasks_widget.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class ViewTasksNoWeeklyPage extends StatelessWidget {
@@ -59,11 +60,16 @@ class ViewTasksNoWeeklyPage extends StatelessWidget {
               const SizedBox(height: 8),
               // 🔹 Grille des tâches
               Expanded(
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  children: List.generate(tasksWidget.tasksNoWeekly.length, (index) {
+                child: GridView.builder(
+                  padding: const EdgeInsets.all(8),
+                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: kIsWeb ? 180 : 220, // 💻 sur web : cartes plus petites
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: kIsWeb ? 1.2 : 1, // équilibre la hauteur sur web
+                  ),
+                  itemCount: tasksWidget.tasksNoWeekly.length,
+                  itemBuilder: (context, index) {
                     final task = tasksWidget.tasksNoWeekly[index];
 
                     final colors = [
@@ -107,7 +113,7 @@ class ViewTasksNoWeeklyPage extends StatelessWidget {
                         ),
                       ),
                     );
-                  }),
+                  },
                 ),
               ),
             ],

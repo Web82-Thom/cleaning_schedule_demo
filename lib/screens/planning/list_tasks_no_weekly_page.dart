@@ -227,7 +227,7 @@ class _NoWeeklyTasksPageState extends State<NoWeeklyTasksPage> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      subtitle: Text('${data['place'] ?? ''}\n$formattedDate'),
+                      subtitle: Text('${data['place'] ?? ''} - ${data['subPlace']}\n$formattedDate'),
                       trailing: diffDays > 0
                           ? Container(
                               padding: const EdgeInsets.symmetric(
@@ -299,13 +299,13 @@ class _NoWeeklyTasksPageState extends State<NoWeeklyTasksPage> {
                       leading:
                           const Icon(Icons.schedule, color: Colors.indigo),
                       title: Text(
-                        data['task'] ?? '',
+                        data['task']  ?? '',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.indigo,
                         ),
                       ),
-                      subtitle: Text('${data['place'] ?? ''}\n$formattedDate'),
+                      subtitle: Text('${data['place'] ?? ''}  - ${data['subPlace']}\n$formattedDate'),
                     ),
                   );
                 }),

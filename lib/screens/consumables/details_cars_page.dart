@@ -1,4 +1,4 @@
-import 'package:cleaning_schedule/controllers/pdf_controller.dart';
+import 'package:cleaning_schedule_demo/controllers/pdf_controller.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -110,16 +110,20 @@ class _DetailsCarsPageState extends State<DetailsCarsPage> {
     return SafeArea(
       child: Scaffold(
         appBar: AppBar(
+          backgroundColor: Colors.indigo,
+          foregroundColor: Colors.white,
           title: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               IconButton(
                 icon: const Icon(Icons.chevron_left),
                 onPressed: () => _changeYear(-1),
               ),
-              Expanded(child: Text('Année $_selectedYear', style: TextStyle(
-                fontSize: 15,
-              ),)),
+              Center(
+                child: Expanded(child: Text('Année $_selectedYear', style: TextStyle(
+                  fontSize: 15,
+                ),)),
+              ),
               IconButton(
                 icon: const Icon(Icons.chevron_right),
                 onPressed: () => _changeYear(1),

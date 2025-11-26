@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:cleaning_schedule/controllers/pdf_controller.dart';
+import 'package:cleaning_schedule_demo/controllers/pdf_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';

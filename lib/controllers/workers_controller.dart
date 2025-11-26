@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class WorkersController extends ChangeNotifier {
   final CollectionReference workersRef = FirebaseFirestore.instance.collection(
@@ -870,4 +871,295 @@ class WorkersController extends ChangeNotifier {
       ],
     );
   }
+
+  /// 🏖 Configurer les congés d'un travailleur
+  void showLeaveDialog(
+    BuildContext context,
+    String workerId,
+    Map<String, dynamic> data,
+  ) {
+    final raw = data['conges'];
+    List<Map<String, dynamic>> leaves = [];
+
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map<String, dynamic>) {
+          final tsStart = item['start'] as Timestamp?;
+          final tsEnd = item['end'] as Timestamp?;
+          final reason = (item['reason'] ?? '').toString();
+
+          leaves.add({
+            'start': tsStart?.toDate(),
+            'end': tsEnd?.toDate(),
+            'reason': reason,
+          });
+        }
+      }
+    }
+
+    if (leaves.isEmpty) {
+      leaves.add({'start': null, 'end': null, 'reason': ''});
+    }
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 24,
+          ),
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              Future<void> pickDate({
+                required int index,
+                required bool isStart,
+              }) async {
+                final current = leaves[index][isStart ? 'start' : 'end']
+                        as DateTime? ??
+                    DateTime.now();
+                final picked = await showDatePicker(
+                  context: dialogContext,
+                  initialDate: current,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2100),
+                );
+                if (picked != null) {
+                  setState(() {
+                    leaves[index][isStart ? 'start' : 'end'] = picked;
+                  });
+                }
+              }
+
+              String formatDate(DateTime? d) {
+                if (d == null) return 'Non défini';
+                return DateFormat('dd/MM/yyyy').format(d);
+              }
+
+              return ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(dialogContext).size.height * 0.85, maxWidth: 500,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Configurer les congés',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              for (int i = 0; i < leaves.length; i++)
+                                Card(
+                                  margin:
+                                      const EdgeInsets.symmetric(vertical: 6),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(10.0),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              'Période ${i + 1}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.delete,
+                                                color: Colors.redAccent,
+                                              ),
+                                              onPressed: () {
+                                                setState(() {
+                                                  leaves.removeAt(i);
+                                                  if (leaves.isEmpty) {
+                                                    leaves.add({
+                                                      'start': null,
+                                                      'end': null,
+                                                      'reason': '',
+                                                    });
+                                                  }
+                                                });
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          children: [
+                                            const Text('Du : '),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              formatDate(
+                                                leaves[i]['start']
+                                                    as DateTime?,
+                                              ),
+                                            ),
+                                            const Spacer(),
+                                            TextButton.icon(
+                                              onPressed: () => pickDate(
+                                                index: i,
+                                                isStart: true,
+                                              ),
+                                              icon: const Icon(
+                                                Icons.date_range,
+                                              ),
+                                              label: const Text('Choisir'),
+                                            ),
+                                          ],
+                                        ),
+                                        Row(
+                                          children: [
+                                            const Text('Au : '),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              formatDate(
+                                                leaves[i]['end']
+                                                    as DateTime?,
+                                              ),
+                                            ),
+                                            const Spacer(),
+                                            TextButton.icon(
+                                              onPressed: () => pickDate(
+                                                index: i,
+                                                isStart: false,
+                                              ),
+                                              icon: const Icon(
+                                                Icons.date_range,
+                                              ),
+                                              label: const Text('Choisir'),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        TextField(
+                                          decoration: const InputDecoration(
+                                            labelText: 'Motif (optionnel)',
+                                            border: OutlineInputBorder(),
+                                          ),
+                                          onChanged: (v) {
+                                            leaves[i]['reason'] = v.trim();
+                                          },
+                                          controller: TextEditingController(
+                                            text: leaves[i]['reason'] ?? '',
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: TextButton.icon(
+                                  onPressed: () {
+                                    setState(() {
+                                      leaves.add({
+                                        'start': null,
+                                        'end': null,
+                                        'reason': '',
+                                      });
+                                    });
+                                  },
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Ajouter une période'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            child: const Text('Annuler'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () async {
+                              try {
+                                // On ne garde que les périodes complètes
+                                final toSave = leaves
+                                    .where((l) =>
+                                        l['start'] != null &&
+                                        l['end'] != null)
+                                    .map((l) {
+                                  final start =
+                                      l['start'] as DateTime;
+                                  final end = l['end'] as DateTime;
+                                  return {
+                                    'start': Timestamp.fromDate(start),
+                                    'end': Timestamp.fromDate(end),
+                                    'reason': (l['reason'] ?? '')
+                                        .toString(),
+                                  };
+                                }).toList();
+
+                                await workersRef.doc(workerId).update({
+                                  'conges': toSave,
+                                });
+
+                                if (context.mounted) {
+                                  Navigator.of(dialogContext).pop();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Congés enregistrés ✅',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Erreur lors de l’enregistrement des congés : $e',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            child: const Text('Enregistrer'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
 }

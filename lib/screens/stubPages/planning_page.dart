@@ -1,4 +1,4 @@
-import 'package:cleaning_schedule/widgets/weekly_schedule_table_widget.dart';
+import 'package:cleaning_schedule_demo/widgets/weekly_schedule_table_widget.dart';
 import 'package:flutter/material.dart';
 
 class PlanningPage extends StatelessWidget {
