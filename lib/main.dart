@@ -1,6 +1,8 @@
 import 'package:cleaning_schedule_demo/screens/consumables/list_pdf_cars_page.dart';
 import 'package:cleaning_schedule_demo/screens/consumables/widgets/list_pdf_page.dart';
 import 'package:cleaning_schedule_demo/screens/list_pdf_schedule_weekly_page.dart';
+import 'package:cleaning_schedule_demo/screens/more_app.dart/about_page.dart';
+import 'package:cleaning_schedule_demo/screens/more_app.dart/documentation_pdf.dart';
 import 'package:cleaning_schedule_demo/screens/planning/event_from_page.dart';
 import 'package:cleaning_schedule_demo/screens/planning/list_tasks_no_weekly_page.dart';
 import 'package:cleaning_schedule_demo/screens/planning/to_do_list_page.dart';
@@ -129,6 +131,8 @@ class CleaningScheduleApp extends StatelessWidget {
           '/listPdfVillas' : (_) => const ListPdfPage(),
           '/listPdfOtherPlaces' : (_) => const ListPdfPage(),
           '/listPdfProducts' : (context) => ListPdfPage(),
+          '/about' : (context) => AboutPage(),
+          '/docAppPdf' : (context) => DocumentationsPdfPage(),
         },
       ),
     );
