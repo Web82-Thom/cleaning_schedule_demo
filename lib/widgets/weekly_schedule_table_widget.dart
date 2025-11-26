@@ -290,6 +290,7 @@ Color _colorForPlace(String place) {
         return Scaffold(
           appBar: AppBar(
             leading: IconButton(
+              tooltip: 'Générer un planning type',
               onPressed: (){
                 _scheduleController.showDialogGeneratedWeeklyScheduleType(
                   context: context,

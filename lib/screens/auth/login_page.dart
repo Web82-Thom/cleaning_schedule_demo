@@ -12,8 +12,8 @@ class _LoginPageState extends State<LoginPage> {
   final _authController = AuthController();
   final _formKey = GlobalKey<FormState>();
 
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _emailController = TextEditingController(text: 'cleaning.schedule@gmail.com');
+  final _passwordController = TextEditingController(text:'Cleaning');
 
   bool _obscurePassword = true;
   String? _errorMessage;
